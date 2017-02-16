@@ -7,6 +7,9 @@ public class SettingsActivity extends SingleFragmentActivity {
 
     @Override
     protected Fragment createFragment() {
+        // Initialize sneaking
+        SneakingService.setServiceAlarm(this);
+
         return new SettingsFragment();
     }
 }
