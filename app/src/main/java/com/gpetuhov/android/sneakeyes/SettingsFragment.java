@@ -17,10 +17,20 @@ public class SettingsFragment extends PreferenceFragmentCompat
 
         // Load the preferences from an XML resource
         setPreferencesFromResource(R.xml.pref_general, s);
+
+        // Get Enabled/Disabled preference
+        Preference sneakingEnabledPref = findPreference(getString(R.string.pref_onoff_key));
+
+        // Set the listener to watch for value changes
+        if (sneakingEnabledPref != null) {
+            sneakingEnabledPref.setOnPreferenceChangeListener(this);
+        }
     }
 
+    // Method is called when a preference changes
     @Override
     public boolean onPreferenceChange(Preference preference, Object value) {
-        return false;
+        SneakingService.setServiceAlarm(getActivity());
+        return true;
     }
 }
