@@ -1,3 +1,11 @@
 <resources>
     <string name="app_name">SneakEyes</string>
+
+    <!--Settings text-->
+    <!--Enabled/Disabled Settings-->
+    <string name="pref_onoff_label">Sneaking</string>
+    <string name="pref_onoff_key">pref_onoff</string>
+    <string name="pref_onoff_on_label">Enabled</string>
+    <string name="pref_onoff_off_label">Disabled</string>
+
 </resources>

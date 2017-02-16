@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<!--Layout for application preferences-->
+
+<PreferenceScreen
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <!--Enable/Disable setting-->
+    <SwitchPreferenceCompat
+        android:title="@string/pref_onoff_label"
+        android:key="@string/pref_onoff_key"
+        android:defaultValue="true"
+        android:summaryOn="@string/pref_onoff_on_label"
+        android:summaryOff="@string/pref_onoff_off_label"/>
+
+</PreferenceScreen>
