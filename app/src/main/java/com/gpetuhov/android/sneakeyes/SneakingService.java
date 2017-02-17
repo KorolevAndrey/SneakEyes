@@ -11,6 +11,8 @@ import android.os.SystemClock;
 import android.preference.PreferenceManager;
 import android.util.Log;
 
+import javax.inject.Inject;
+
 // Service takes pictures, gets location info and posts them to VK
 public class SneakingService extends IntentService {
 
@@ -18,10 +20,13 @@ public class SneakingService extends IntentService {
     private static final String LOG_TAG = SneakingService.class.getName();
 
     // Sneak interval in minutes (for testing)
-    public static final int SNEAK_INTERVAL = 1;
+    private static final int SNEAK_INTERVAL = 1;
 
     // One minute in milliseconds
-    public static final int SNEAK_INTERVAL_MINUTE = 60 * 1000;
+    private static final int SNEAK_INTERVAL_MINUTE = 60 * 1000;
+
+    // Keeps instance of PhotoTaker. Injected by Dagger.
+    @Inject PhotoTaker mPhotoTaker;
 
     // Create new intent to start this service
     public static Intent newIntent(Context context) {
@@ -87,7 +92,9 @@ public class SneakingService extends IntentService {
 
         Log.d(LOG_TAG, "Sneaking");
 
-        // TODO: Take photos and post them to VK here
+        mPhotoTaker.takePhoto();
+
+        // TODO: Post photos to VK here
 
     }
 

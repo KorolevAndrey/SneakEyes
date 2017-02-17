@@ -4,6 +4,7 @@ import android.app.Application;
 import android.content.SharedPreferences;
 import android.support.v7.preference.PreferenceManager;
 
+import com.gpetuhov.android.sneakeyes.PhotoTaker;
 import com.gpetuhov.android.sneakeyes.utils.UtilsPrefs;
 
 import javax.inject.Singleton;
@@ -42,5 +43,13 @@ public class AppModule {
     UtilsPrefs providesUtilsPrefs(Application application, SharedPreferences sharedPreferences) {
         UtilsPrefs utilsPrefs = new UtilsPrefs(application, sharedPreferences);
         return utilsPrefs;
+    }
+
+    // Returns instance of PhotoTaker
+    @Provides
+    @Singleton
+    PhotoTaker providesPhotoTaker(Application application) {
+        PhotoTaker photoTaker = new PhotoTaker(application);
+        return photoTaker;
     }
 }

@@ -2,16 +2,23 @@
 <manifest package="com.gpetuhov.android.sneakeyes"
           xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- Needed by Camera API -->
+    <uses-permission android:name="android.permission.CAMERA"/>
+
+    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="true"/>
+
     <application
-        android:allowBackup="true"
         android:name=".SneakEyesApp"
+        android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
 
-        <!--Application settings activity-->
-        <activity android:name=".SettingsActivity">
+        <!-- Application settings activity -->
+        <activity android:name=".ButtonActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
 
@@ -19,7 +26,7 @@
             </intent-filter>
         </activity>
 
-        <!--Service takes pictures and posts to VK-->
+        <!-- Service takes pictures and posts to VK -->
         <service android:name=".SneakingService"/>
 
     </application>
