@@ -2,19 +2,23 @@ package com.gpetuhov.android.sneakeyes;
 
 
 import android.app.AlarmManager;
-import android.app.IntentService;
 import android.app.PendingIntent;
+import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.os.IBinder;
 import android.os.SystemClock;
 import android.preference.PreferenceManager;
+import android.support.annotation.Nullable;
 import android.util.Log;
 
 import javax.inject.Inject;
 
-// Service takes pictures, gets location info and posts them to VK
-public class SneakingService extends IntentService {
+// Service takes pictures, gets location info and posts them to VK.
+// Implements PhotoTaker.Callback to receive callbacks from PhotoTaker, when photo is ready.
+// Service runs on the application MAIN thread!
+public class SneakingService extends Service implements PhotoTaker.Callback {
 
     // Tag for logging
     private static final String LOG_TAG = SneakingService.class.getName();
@@ -83,26 +87,46 @@ public class SneakingService extends IntentService {
         }
     }
 
-    public SneakingService() {
-        super(LOG_TAG);
-    }
-
-    @Override
-    protected void onHandleIntent(Intent intent) {
-
-        Log.d(LOG_TAG, "Sneaking");
-
-        mPhotoTaker.takePhoto();
-
-        // TODO: Post photos to VK here
-
-    }
-
     @Override
     public void onCreate() {
         super.onCreate();
 
-        // Inject UtilsPrefs instance into this service field
+        // Inject PhotoTaker instance into this service field
         SneakEyesApp.getAppComponent().inject(this);
+    }
+
+    // Method is called, when Service is started by incoming intent
+    @Override
+    public int onStartCommand(Intent intent, int flags, int startId) {
+
+        // IMPORTANT: This runs on the application MAIN thread!
+
+        Log.d(LOG_TAG, "Sneaking");
+
+        mPhotoTaker.takePhoto(this);
+
+        // Don't restart service if killed
+        return START_NOT_STICKY;
+    }
+
+    @Nullable
+    @Override
+    public IBinder onBind(Intent intent) {
+        // We don't use binding.
+        return null;
+    }
+
+    // Method is called by PhotoTaker, when photo is taken and saved.
+    @Override
+    public void onPhotoTaken() {
+
+        // Photo is ready and saved in internal storage.
+        // Start uploading it to VK
+        // TODO: Post photos to VK here (create worker thread for it)
+
+        // All work is done. Service can be stopped.
+        // (Services must be stopped manually)
+        // TODO: Later move stopSelf() to callback from the uploader to VK
+        stopSelf();
     }
 }

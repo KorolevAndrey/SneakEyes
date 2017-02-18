@@ -12,6 +12,8 @@ import java.io.IOException;
 // Takes photos from phone camera.
 // Implements Camera.PictureCallback to handle photos taken by the camera.
 // Implements Camera.PreviewCallback to take pictures when preview is ready only.
+// Host of PhotoTaker must implement PhotoTaker.Callback to receive callback,
+// when photo is taken and saved.
 public class PhotoTaker implements Camera.PictureCallback, Camera.PreviewCallback {
 
     // Tag for logging
@@ -26,13 +28,24 @@ public class PhotoTaker implements Camera.PictureCallback, Camera.PreviewCallbac
     // Keeps camera instance
     private Camera mCamera;
 
+    // Keeps reference to the host of PhotoTaker
+    private Callback mCallback;
+
+    // Host of PhotoTaker must implement this interface to receive callbacks
+    public interface Callback {
+        void onPhotoTaken();
+    }
+
     public PhotoTaker(Context context) {
         mContext = context;
     }
 
     // Check camera availability, initialize camera and start image capture.
     // Call this method to take photos.
-    public void takePhoto() {
+    public void takePhoto(Callback callback) {
+        // Save reference to the host of PhotoTaker
+        mCallback = callback;
+
         if (isCameraAvailable()) {
             releaseCamera();
             if (getCameraInstance()) {
@@ -136,5 +149,10 @@ public class PhotoTaker implements Camera.PictureCallback, Camera.PreviewCallbac
         }
 
         releaseCamera();
+
+        // Tell the host of PhotoTaker, that photo is taken and saved.
+        if (mCallback != null) {
+            mCallback.onPhotoTaken();
+        }
     }
 }

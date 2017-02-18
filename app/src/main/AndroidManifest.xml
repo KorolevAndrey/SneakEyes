@@ -18,7 +18,7 @@
         android:theme="@style/AppTheme">
 
         <!-- Application settings activity -->
-        <activity android:name=".ButtonActivity">
+        <activity android:name=".SettingsActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
 
