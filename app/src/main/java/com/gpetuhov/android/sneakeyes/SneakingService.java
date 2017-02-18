@@ -70,11 +70,13 @@ public class SneakingService extends Service implements PhotoTaker.Callback {
             int sneakIntervalMillis = sneakInterval * SNEAK_INTERVAL_MINUTE;
 
             // Turn on AlarmManager for inexact repeating
-            // (every poll interval AlarmManager will send pending request to start this service).
+            // (every sneak interval AlarmManager will send pending request to start this service).
             // Time base is set to elapsed time since last system startup.
-            // First time AlarmManager will trigger after first poll interval from current time.
-            alarmManager.setInexactRepeating(AlarmManager.ELAPSED_REALTIME,
-                    SystemClock.elapsedRealtime(), sneakIntervalMillis, pi);
+            // First time AlarmManager will trigger after first sneak interval from current time.
+            // AlarmManager will wake the device if it goes off.
+            alarmManager.setInexactRepeating(AlarmManager.ELAPSED_REALTIME_WAKEUP,
+                    SystemClock.elapsedRealtime() + sneakIntervalMillis,
+                    sneakIntervalMillis, pi);
 
         } else {
             // Otherwise turn AlarmManager off
