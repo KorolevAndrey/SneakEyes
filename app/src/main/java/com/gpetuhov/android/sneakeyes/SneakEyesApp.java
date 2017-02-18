@@ -5,14 +5,28 @@ import android.app.Application;
 import com.gpetuhov.android.sneakeyes.dagger.AppComponent;
 import com.gpetuhov.android.sneakeyes.dagger.AppModule;
 import com.gpetuhov.android.sneakeyes.dagger.DaggerAppComponent;
+import com.vk.sdk.VKAccessToken;
+import com.vk.sdk.VKAccessTokenTracker;
+import com.vk.sdk.VKSdk;
 
 // SneakEyes application class.
 // Builds and keeps instance of AppComponent,
-// which is used to inject fields into application activities and fragments
+// which is used to inject fields into application activities and fragments.
 public class SneakEyesApp extends Application {
 
     // Keeps instance of AppComponent
     private static AppComponent mAppComponent;
+
+    // Needed to detect if VK access token has expired
+    VKAccessTokenTracker mVKAccessTokenTracker = new VKAccessTokenTracker() {
+        @Override
+        public void onVKAccessTokenChanged(VKAccessToken oldToken, VKAccessToken newToken) {
+            if (newToken == null) {
+                // VKAccessToken is invalid
+                // TODO: Handle this situation
+            }
+        }
+    };
 
     public static AppComponent getAppComponent() {
         return mAppComponent;
@@ -27,5 +41,11 @@ public class SneakEyesApp extends Application {
         mAppComponent = DaggerAppComponent.builder()
                 .appModule(new AppModule(this))
                 .build();
+
+        // Start tracking VK access token
+        mVKAccessTokenTracker.startTracking();
+
+        // Initialize VKontakte SDK
+        VKSdk.initialize(this);
     }
 }

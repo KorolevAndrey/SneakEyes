@@ -31,4 +31,6 @@ dependencies {
 
     compile 'com.google.dagger:dagger:2.8'
     annotationProcessor 'com.google.dagger:dagger-compiler:2.8'
+
+    compile 'com.vk:androidsdk:1.6.7'
 }

@@ -1,6 +1,9 @@
 <resources>
     <string name="app_name">SneakEyes</string>
 
+    <!--VKontakte app ID-->
+    <integer name="com_vk_sdk_AppId">5882244</integer>
+
     <!--Settings text-->
     <!--Enabled/Disabled Settings-->
     <string name="pref_onoff_label">Sneaking</string>

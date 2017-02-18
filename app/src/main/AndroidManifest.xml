@@ -9,6 +9,9 @@
         android:name="android.hardware.camera"
         android:required="true"/>
 
+    <!--Needed to upload data to VK-->
+    <uses-permission android:name="android.permission.INTERNET"/>
+
     <application
         android:name=".SneakEyesApp"
         android:allowBackup="true"
@@ -25,6 +28,12 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+
+        <!--VK authorization activity-->
+        <activity
+            android:name="com.vk.sdk.VKServiceActivity"
+            android:label="ServiceActivity"
+            android:theme="@style/VK.Transparent"/>
 
         <!-- Service takes pictures and posts to VK -->
         <service android:name=".SneakingService"/>
