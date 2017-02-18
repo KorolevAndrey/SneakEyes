@@ -2,25 +2,27 @@ package com.gpetuhov.android.sneakeyes;
 
 import android.content.Context;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.SurfaceTexture;
 import android.hardware.Camera;
 import android.util.Log;
 
-import java.io.FileOutputStream;
 import java.io.IOException;
 
 // Takes photos from phone camera.
 // Implements Camera.PictureCallback to handle photos taken by the camera.
 // Implements Camera.PreviewCallback to take pictures when preview is ready only.
 // Host of PhotoTaker must implement PhotoTaker.Callback to receive callback,
-// when photo is taken and saved.
+// when photo is taken and ready.
 public class PhotoTaker implements Camera.PictureCallback, Camera.PreviewCallback {
 
     // Tag for logging
     private static final String LOG_TAG = PhotoTaker.class.getName();
 
-    // Name of the file for saving photos
-    private static final String PHOTO_FILE_NAME = "photo.jpg";
+    public static final int OUTPUT_PHOTO_WIDTH = 800;
+
+    public static final int OUTPUT_PHOTO_HEIGHT = 600;
 
     // Context is needed for checking camera availability and saving photos
     private Context mContext;
@@ -33,7 +35,7 @@ public class PhotoTaker implements Camera.PictureCallback, Camera.PreviewCallbac
 
     // Host of PhotoTaker must implement this interface to receive callbacks
     public interface Callback {
-        void onPhotoTaken();
+        void onPhotoTaken(Bitmap photoBitmap);
     }
 
     public PhotoTaker(Context context) {
@@ -135,24 +137,42 @@ public class PhotoTaker implements Camera.PictureCallback, Camera.PreviewCallbac
     @Override
     public void onPictureTaken(byte[] data, Camera camera) {
 
-        Log.d(LOG_TAG, "Saving photo");
-
-        String filename = PHOTO_FILE_NAME;
-        FileOutputStream outputStream;
-
-        try {
-            outputStream = mContext.openFileOutput(filename, Context.MODE_PRIVATE);
-            outputStream.write(data);
-            outputStream.close();
-        } catch (Exception e) {
-            Log.e(LOG_TAG, "Error while saving photo");
-        }
-
+        // Photo is taken, we should release the camera.
         releaseCamera();
 
-        // Tell the host of PhotoTaker, that photo is taken and saved.
+        Log.d(LOG_TAG, "Processing photo");
+
+        // Convert byte array, received from the camera,
+        // to Bitmap, scaled to output width and height.
+        Bitmap photoBitmap = getScaledBitmap(data, OUTPUT_PHOTO_WIDTH, OUTPUT_PHOTO_HEIGHT);
+
+        // Pass photo Bitmap to the host of PhotoTaker
         if (mCallback != null) {
-            mCallback.onPhotoTaken();
+            mCallback.onPhotoTaken(photoBitmap);
         }
+    }
+
+    // Get scaled Bitmap from byte array
+    private Bitmap getScaledBitmap(byte[] data, int destWidth, int destHeight) {
+        BitmapFactory.Options options = new BitmapFactory.Options();
+        options.inJustDecodeBounds = true;
+        BitmapFactory.decodeByteArray(data, 0, data.length, options);
+
+        float srcWidth = options.outWidth;
+        float srcHeight = options.outHeight;
+
+        int inSampleSize = 1;
+        if (srcHeight > destHeight || srcWidth > destWidth) {
+            if (srcWidth > srcHeight) {
+                inSampleSize = Math.round(srcHeight / destHeight);
+            } else {
+                inSampleSize = Math.round(srcWidth / destWidth);
+            }
+        }
+
+        options = new BitmapFactory.Options();
+        options.inSampleSize = inSampleSize;
+
+        return BitmapFactory.decodeByteArray(data, 0, data.length, options);
     }
 }

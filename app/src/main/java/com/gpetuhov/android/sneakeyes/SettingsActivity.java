@@ -15,11 +15,14 @@ public class SettingsActivity extends SingleFragmentActivity {
     @Override
     protected Fragment createFragment() {
 
-        // Start VK login procedure (start VK login activity).
-        // Request rights to access user wall and photos.
-        // IMPORTANT: VKSdk.login() does NOT support fragments from support library.
-        // That's why we call it here, not in SettingsFragment.
-        VKSdk.login(this, VKScope.WALL, VKScope.PHOTOS);
+        // If the user is not logged in to VK
+        if (!VKSdk.isLoggedIn()) {
+            // Start VK login procedure (start VK login activity).
+            // Request rights to access user wall and photos.
+            // IMPORTANT: VKSdk.login() does NOT support fragments from support library.
+            // That's why we call it here, not in SettingsFragment.
+            VKSdk.login(this, VKScope.WALL, VKScope.PHOTOS);
+        }
 
         return new SettingsFragment();
     }

@@ -7,11 +7,26 @@ import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.graphics.Bitmap;
 import android.os.IBinder;
 import android.os.SystemClock;
 import android.preference.PreferenceManager;
 import android.support.annotation.Nullable;
 import android.util.Log;
+
+import com.vk.sdk.VKAccessToken;
+import com.vk.sdk.api.VKApi;
+import com.vk.sdk.api.VKApiConst;
+import com.vk.sdk.api.VKError;
+import com.vk.sdk.api.VKParameters;
+import com.vk.sdk.api.VKRequest;
+import com.vk.sdk.api.VKResponse;
+import com.vk.sdk.api.model.VKApiPhoto;
+import com.vk.sdk.api.model.VKAttachments;
+import com.vk.sdk.api.model.VKPhotoArray;
+import com.vk.sdk.api.model.VKWallPostResult;
+import com.vk.sdk.api.photo.VKImageParameters;
+import com.vk.sdk.api.photo.VKUploadImage;
 
 import javax.inject.Inject;
 
@@ -28,6 +43,9 @@ public class SneakingService extends Service implements PhotoTaker.Callback {
 
     // One minute in milliseconds
     private static final int SNEAK_INTERVAL_MINUTE = 60 * 1000;
+
+    // Hashtag for VK wall posts
+    public static final String VK_HASHTAG = "#SneakEyesApp";
 
     // Keeps instance of PhotoTaker. Injected by Dagger.
     @Inject PhotoTaker mPhotoTaker;
@@ -118,17 +136,67 @@ public class SneakingService extends Service implements PhotoTaker.Callback {
         return null;
     }
 
-    // Method is called by PhotoTaker, when photo is taken and saved.
+    // Method is called by PhotoTaker, when photo is taken.
     @Override
-    public void onPhotoTaken() {
+    public void onPhotoTaken(Bitmap photoBitmap) {
 
-        // Photo is ready and saved in internal storage.
-        // Start uploading it to VK
-        // TODO: Post photos to VK here (create worker thread for it)
+        // Photo is ready.
+        // Start uploading it to VK wall
+        loadPhotoToVKWall(photoBitmap, VK_HASHTAG);
+    }
 
-        // All work is done. Service can be stopped.
-        // (Services must be stopped manually)
-        // TODO: Later move stopSelf() to callback from the uploader to VK
-        stopSelf();
+    // Loading photo to VK wall is done in 2 steps:
+    // 1. Upload photo to the server
+    // 2. Make wall post with this uploaded photo
+    void loadPhotoToVKWall(final Bitmap photo, final String message) {
+        VKRequest request =
+                VKApi.uploadWallPhotoRequest(
+                        new VKUploadImage(photo, VKImageParameters.jpgImage(0.9f)),
+                        getUserVKId(), 0);
+        request.executeWithListener(new VKRequest.VKRequestListener() {
+            @Override
+            public void onComplete(VKResponse response) {
+                // Photo is uploaded to the server.
+                // Ready to make wall post with it.
+                VKApiPhoto photoModel = ((VKPhotoArray) response.parsedModel).get(0);
+                makePostToVKWall(new VKAttachments(photoModel), message, getUserVKId());
+            }
+            @Override
+            public void onError(VKError error) {
+                // Error
+            }
+        });
+    }
+
+    // Return VK user ID
+    private int getUserVKId() {
+        final VKAccessToken vkAccessToken = VKAccessToken.currentToken();
+        return vkAccessToken != null ? Integer.parseInt(vkAccessToken.userId) : 0;
+    }
+
+    // Make post to the user's VK wall with provided attachments and message
+    private void makePostToVKWall(VKAttachments att, String msg, final int ownerId) {
+        VKParameters parameters = new VKParameters();
+        parameters.put(VKApiConst.OWNER_ID, String.valueOf(ownerId));
+        parameters.put(VKApiConst.ATTACHMENTS, att);
+        parameters.put(VKApiConst.MESSAGE, msg);
+        VKRequest post = VKApi.wall().post(parameters);
+        post.setModelClass(VKWallPostResult.class);
+        post.executeWithListener(new VKRequest.VKRequestListener() {
+            @Override
+            public void onComplete(VKResponse response) {
+                // Post was added
+                // All work is done. Service can be stopped.
+                // (Services must be stopped manually)
+                stopSelf();
+            }
+            @Override
+            public void onError(VKError error) {
+                // Error
+                // Stop Service anyway, because
+                // Services must be stopped manually.
+                stopSelf();
+            }
+        });
     }
 }
