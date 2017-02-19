@@ -8,12 +8,19 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
+import android.location.Location;
+import android.os.Bundle;
 import android.os.IBinder;
 import android.os.SystemClock;
 import android.preference.PreferenceManager;
 import android.support.annotation.Nullable;
 import android.util.Log;
 
+import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.location.LocationListener;
+import com.google.android.gms.location.LocationRequest;
+import com.google.android.gms.location.LocationServices;
 import com.vk.sdk.VKAccessToken;
 import com.vk.sdk.VKSdk;
 import com.vk.sdk.api.VKApi;
@@ -34,7 +41,11 @@ import javax.inject.Inject;
 // Service takes pictures, gets location info and posts them to VK.
 // Implements PhotoTaker.Callback to receive callbacks from PhotoTaker, when photo is ready.
 // Service runs on the application MAIN thread!
-public class SneakingService extends Service implements PhotoTaker.Callback {
+public class SneakingService extends Service implements
+        PhotoTaker.Callback,
+        GoogleApiClient.ConnectionCallbacks,
+        GoogleApiClient.OnConnectionFailedListener,
+        LocationListener {
 
     // Tag for logging
     private static final String LOG_TAG = SneakingService.class.getName();
@@ -50,6 +61,14 @@ public class SneakingService extends Service implements PhotoTaker.Callback {
 
     // Keeps instance of PhotoTaker. Injected by Dagger.
     @Inject PhotoTaker mPhotoTaker;
+
+    private Bitmap mPhotoBitmap;
+
+    private GoogleApiClient mGoogleApiClient;
+
+    private LocationRequest mLocationRequest;
+
+    private Location mLocation;
 
     // Create new intent to start this service
     public static Intent newIntent(Context context) {
@@ -114,6 +133,12 @@ public class SneakingService extends Service implements PhotoTaker.Callback {
 
         // Inject PhotoTaker instance into this service field
         SneakEyesApp.getAppComponent().inject(this);
+
+        mGoogleApiClient = new GoogleApiClient.Builder(this)
+                .addApi(LocationServices.API)
+                .addConnectionCallbacks(this)
+                .addOnConnectionFailedListener(this)
+                .build();
     }
 
     // Method is called, when Service is started by incoming intent
@@ -148,33 +173,83 @@ public class SneakingService extends Service implements PhotoTaker.Callback {
     @Override
     public void onPhotoTaken(Bitmap photoBitmap) {
 
-        // Photo is ready.
-        // Start uploading it to VK wall
-        loadPhotoToVKWall(photoBitmap, VK_HASHTAG);
+        // Save photo
+        mPhotoBitmap = photoBitmap;
+
+        // Connect to GoogleApiClient to get location info
+        mGoogleApiClient.connect();
+    }
+
+    @Override
+    public void onConnected(Bundle bundle) {
+        mLocationRequest = LocationRequest.create();
+        mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+        mLocationRequest.setNumUpdates(1);
+        mLocationRequest.setInterval(0);
+
+        LocationServices.FusedLocationApi.requestLocationUpdates(mGoogleApiClient, mLocationRequest, this);
+    }
+
+    @Override
+    public void onConnectionSuspended(int i) {
+        Log.d(LOG_TAG, "GoogleApiClient connection has been suspend");
+
+        mGoogleApiClient.disconnect();
+
+        // GoogleApiClient connection has been suspend.
+        // Start uploading photo to VK wall (photo will be posted without location info).
+        loadPhotoToVKWall();
+    }
+
+    @Override
+    public void onConnectionFailed(ConnectionResult connectionResult) {
+        Log.i(LOG_TAG, "GoogleApiClient connection has failed");
+
+        mGoogleApiClient.disconnect();
+
+        // GoogleApiClient connection has failed.
+        // Start uploading photo to VK wall (photo will be posted without location info).
+        loadPhotoToVKWall();
+    }
+
+    @Override
+    public void onLocationChanged(Location location) {
+        Log.d(LOG_TAG, "Location: " + location.toString());
+
+        mGoogleApiClient.disconnect();
+
+        // Save location info
+        mLocation = location;
+
+        // Start uploading photo to VK wall (photo will be posted with location info).
+        loadPhotoToVKWall();
     }
 
     // Loading photo to VK wall is done in 2 steps:
     // 1. Upload photo to the server
     // 2. Make wall post with this uploaded photo
-    void loadPhotoToVKWall(final Bitmap photo, final String message) {
-        VKRequest request =
-                VKApi.uploadWallPhotoRequest(
-                        new VKUploadImage(photo, VKImageParameters.jpgImage(0.9f)),
-                        getUserVKId(), 0);
-        request.executeWithListener(new VKRequest.VKRequestListener() {
-            @Override
-            public void onComplete(VKResponse response) {
-                // Photo is uploaded to the server.
-                // Ready to make wall post with it.
-                VKApiPhoto photoModel = ((VKPhotoArray) response.parsedModel).get(0);
-                makePostToVKWall(new VKAttachments(photoModel), message, getUserVKId());
-            }
-            @Override
-            public void onError(VKError error) {
-                // Error uploading photo to server.
-                // Do nothing.
-            }
-        });
+    void loadPhotoToVKWall() {
+        if (mPhotoBitmap != null) {
+            VKRequest request =
+                    VKApi.uploadWallPhotoRequest(
+                            new VKUploadImage(mPhotoBitmap, VKImageParameters.jpgImage(0.9f)),
+                            getUserVKId(), 0);
+            request.executeWithListener(new VKRequest.VKRequestListener() {
+                @Override
+                public void onComplete(VKResponse response) {
+                    // Photo is uploaded to the server.
+                    // Ready to make wall post with it.
+                    VKApiPhoto photoModel = ((VKPhotoArray) response.parsedModel).get(0);
+                    makePostToVKWall(new VKAttachments(photoModel), VK_HASHTAG, getUserVKId());
+                }
+                @Override
+                public void onError(VKError error) {
+                    // Error uploading photo to server.
+                    // Stop service.
+                    stopSelf();
+                }
+            });
+        }
     }
 
     // Return VK user ID

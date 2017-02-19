@@ -4,10 +4,13 @@
 
     <!-- Needed by Camera API -->
     <uses-permission android:name="android.permission.CAMERA"/>
-
     <uses-feature
         android:name="android.hardware.camera"
         android:required="true"/>
+
+    <!--Needed by Google Location Services-->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
 
     <!--Needed to upload data to VK-->
     <uses-permission android:name="android.permission.INTERNET"/>
@@ -19,6 +22,10 @@
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
+
+        <!--Needed by Google Location Services-->
+        <meta-data android:name="com.google.android.gms.version"
+                   android:value="@integer/google_play_services_version"/>
 
         <!-- Application settings activity -->
         <activity android:name=".SettingsActivity">
