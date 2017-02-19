@@ -13,14 +13,43 @@ import com.vk.sdk.api.VKError;
 // Activity with application settings
 public class SettingsActivity extends SingleFragmentActivity {
 
+    // Keeps reference to running activity instance
+    private static SettingsActivity sSettingsActivity;
+
+    // True if activity is running in foreground
+    private static boolean sResumed = false;
+
+    // Return true, if activity is running in foreground
+    public static boolean isResumed() {
+        return sResumed;
+    }
+
     // Return new intent to start this activity
     public static Intent newIntent(Context context) {
         // Create explicit intent to start this activity
         return new Intent(context, SettingsActivity.class);
     }
 
+    // Log user to VK
+    public static void loginToVK() {
+        if (sSettingsActivity != null) {
+            // If the user is not logged in to VK
+            if (!VKSdk.isLoggedIn()) {
+                // Start VK login procedure (start VK login activity).
+                // Request rights to access user wall and photos.
+                // Request token, that never expires (offline).
+                // IMPORTANT: VKSdk.login() does NOT support fragments from support library.
+                // That's why we call it here, not in SettingsFragment.
+                VKSdk.login(sSettingsActivity, VKScope.WALL, VKScope.PHOTOS, VKScope.OFFLINE);
+            }
+        }
+    }
+
     @Override
     protected Fragment createFragment() {
+
+        // Save reference to running activity instance
+        sSettingsActivity = SettingsActivity.this;
 
         // Initialize sneaking
         SneakingService.setServiceAlarm(SettingsActivity.this);
@@ -33,15 +62,18 @@ public class SettingsActivity extends SingleFragmentActivity {
     protected void onResume() {
         super.onResume();
 
-        // If the user is not logged in to VK
-        if (!VKSdk.isLoggedIn()) {
-            // Start VK login procedure (start VK login activity).
-            // Request rights to access user wall and photos.
-            // Request token, that never expires (offline).
-            // IMPORTANT: VKSdk.login() does NOT support fragments from support library.
-            // That's why we call it here, not in SettingsFragment.
-            VKSdk.login(this, VKScope.WALL, VKScope.PHOTOS, VKScope.OFFLINE);
-        }
+        // Activity goes into foreground
+        sResumed = true;
+
+        loginToVK();
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+
+        // Activity goes into background
+        sResumed = false;
     }
 
     // Method is called after VK login activity finishes
