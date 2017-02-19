@@ -180,16 +180,20 @@ public class SneakingService extends Service implements
         mGoogleApiClient.connect();
     }
 
+    // Method is called, when GoogleApiClient connection established
     @Override
     public void onConnected(Bundle bundle) {
+        // Create request for current location
         mLocationRequest = LocationRequest.create();
         mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
-        mLocationRequest.setNumUpdates(1);
-        mLocationRequest.setInterval(0);
+        mLocationRequest.setNumUpdates(1);  // We need only one update
+        mLocationRequest.setInterval(0);    // We need it as soon as possible
 
+        // Send request
         LocationServices.FusedLocationApi.requestLocationUpdates(mGoogleApiClient, mLocationRequest, this);
     }
 
+    // Method is called, when GoogleApiClient connection suspended
     @Override
     public void onConnectionSuspended(int i) {
         Log.d(LOG_TAG, "GoogleApiClient connection has been suspend");
@@ -201,6 +205,7 @@ public class SneakingService extends Service implements
         loadPhotoToVKWall();
     }
 
+    // Method is called, when GoogleApiClient connection failed
     @Override
     public void onConnectionFailed(ConnectionResult connectionResult) {
         Log.i(LOG_TAG, "GoogleApiClient connection has failed");
@@ -212,6 +217,7 @@ public class SneakingService extends Service implements
         loadPhotoToVKWall();
     }
 
+    // Method is called, when location information received
     @Override
     public void onLocationChanged(Location location) {
         Log.d(LOG_TAG, "Location: " + location.toString());
@@ -240,7 +246,7 @@ public class SneakingService extends Service implements
                     // Photo is uploaded to the server.
                     // Ready to make wall post with it.
                     VKApiPhoto photoModel = ((VKPhotoArray) response.parsedModel).get(0);
-                    makePostToVKWall(new VKAttachments(photoModel), VK_HASHTAG, getUserVKId());
+                    makePostToVKWall(new VKAttachments(photoModel), createWallPostMessage(), getUserVKId());
                 }
                 @Override
                 public void onError(VKError error) {
@@ -282,5 +288,24 @@ public class SneakingService extends Service implements
                 stopSelf();
             }
         });
+    }
+
+    // Return message for VK wall post
+    private String createWallPostMessage() {
+        String message;
+
+        // If location info is available
+        if (mLocation != null) {
+            // Convert latitude and longitude to string
+            String latitude = Double.toString(mLocation.getLatitude());
+            String longitude = Double.toString(mLocation.getLongitude());
+            // Construct message
+            message = "Current location: " + latitude + ", " + longitude + " " + VK_HASHTAG;
+        } else {
+            // If location info is not available, include only hashtag into message
+            message = VK_HASHTAG;
+        }
+
+        return message;
     }
 }
