@@ -15,6 +15,9 @@ import java.io.IOException;
 // Implements Camera.PreviewCallback to take pictures when preview is ready only.
 // Host of PhotoTaker must implement PhotoTaker.Callback to receive callback,
 // when photo is taken and ready.
+
+// Sequence of execution: 1. takePhoto(), 2. onPreviewFrame(), 3. onPictureTaken()
+
 public class PhotoTaker implements Camera.PictureCallback, Camera.PreviewCallback {
 
     // Tag for logging

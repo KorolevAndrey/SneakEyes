@@ -15,6 +15,7 @@ import android.support.annotation.Nullable;
 import android.util.Log;
 
 import com.vk.sdk.VKAccessToken;
+import com.vk.sdk.VKSdk;
 import com.vk.sdk.api.VKApi;
 import com.vk.sdk.api.VKApiConst;
 import com.vk.sdk.api.VKError;
@@ -121,9 +122,16 @@ public class SneakingService extends Service implements PhotoTaker.Callback {
 
         // IMPORTANT: This runs on the application MAIN thread!
 
-        Log.d(LOG_TAG, "Sneaking");
-
-        mPhotoTaker.takePhoto(this);
+        // If the user is logged in to VK
+        if (VKSdk.isLoggedIn()) {
+            // Take photo from the camera
+            Log.d(LOG_TAG, "User is logged in. Sneaking...");
+            mPhotoTaker.takePhoto(this);
+        } else {
+            // Otherwise (user is not logged in), do nothing and stop service
+            Log.d(LOG_TAG, "User is NOT logged in. Stopping...");
+            stopSelf();
+        }
 
         // Don't restart service if killed
         return START_NOT_STICKY;
@@ -163,7 +171,8 @@ public class SneakingService extends Service implements PhotoTaker.Callback {
             }
             @Override
             public void onError(VKError error) {
-                // Error
+                // Error uploading photo to server.
+                // Do nothing.
             }
         });
     }
