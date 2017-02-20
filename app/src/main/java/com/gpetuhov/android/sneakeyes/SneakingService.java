@@ -9,19 +9,12 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.location.Location;
-import android.os.Bundle;
 import android.os.IBinder;
 import android.os.SystemClock;
 import android.preference.PreferenceManager;
 import android.support.annotation.Nullable;
 import android.util.Log;
 
-import com.google.android.gms.common.ConnectionResult;
-import com.google.android.gms.common.GooglePlayServicesUtil;
-import com.google.android.gms.common.api.GoogleApiClient;
-import com.google.android.gms.location.LocationListener;
-import com.google.android.gms.location.LocationRequest;
-import com.google.android.gms.location.LocationServices;
 import com.gpetuhov.android.sneakeyes.utils.UtilsNet;
 import com.vk.sdk.VKSdk;
 
@@ -33,12 +26,21 @@ import javax.inject.Inject;
 // Service takes pictures, gets location info and posts them to VK.
 // Implements PhotoTaker.PhotoResultListener to receive callbacks from PhotoTaker.
 // Service runs on the application MAIN thread!
+
+// Sequence of execution:
+// 1. onStartCommand()
+// 2. PhotoTaker.takePhoto()
+// 3. onPhotoTaken() or onPhotoError()
+// 4. LocationFetcher.fetchLocation()
+// 5. onLocationFetchSuccess() or onLocationFetchError() or TimerTask.run()
+// 6. PhotoUploader.uploadPhoto()
+// 7. onPhotoUploadSuccess() or onPhotoUploadError()
+// 8. stopSelf()
+
 public class SneakingService extends Service implements
         PhotoTaker.PhotoResultListener,
-        PhotoUploader.PhotoUploadedListener,
-        GoogleApiClient.ConnectionCallbacks,
-        GoogleApiClient.OnConnectionFailedListener,
-        LocationListener {
+        LocationFetcher.LocationFetchedListener,
+        PhotoUploader.PhotoUploadedListener {
 
     // Tag for logging
     private static final String LOG_TAG = SneakingService.class.getName();
@@ -55,30 +57,28 @@ public class SneakingService extends Service implements
     // Keeps instance of PhotoTaker. Injected by Dagger.
     @Inject PhotoTaker mPhotoTaker;
 
+    // Keeps instance of LocationFetcher. Injected by Dagger.
+    @Inject LocationFetcher mLocationFetcher;
+
     // Keeps instance of PhotoUploader. Injected by Dagger.
     @Inject PhotoUploader mPhotoUploader;
 
     // Keeps taken photo
     private Bitmap mPhoto;
 
-    private GoogleApiClient mGoogleApiClient;
-
-    private LocationRequest mLocationRequest;
-
-    // Task will be run, if no location updates received during LOCATION_REQUEST_WAIT_INTERVAL
+    // Task will be run, if no location received during LOCATION_REQUEST_WAIT_INTERVAL
     private TimerTask mLocationRequestTimeoutTask = new TimerTask() {
         @Override
         public void run() {
-            // Received no location updates.
+            // Received no location info.
 
             Log.d(LOG_TAG, "Location request timeout");
             Log.d(LOG_TAG, "Start posting without location");
 
-            if (mGoogleApiClient != null) {
-                mGoogleApiClient.disconnect();
-            }
+            // Stop LocationFetcher
+            mLocationFetcher.stopFetchingLocation();
 
-            // Start uploading photo to VK wall (photo will be posted without location info).
+            // Start uploading photo to VK wall without location info.
             mPhotoUploader.uploadPhoto(mPhoto, null, SneakingService.this);
         }
     };
@@ -149,12 +149,6 @@ public class SneakingService extends Service implements
 
         // Inject PhotoTaker instance into this service field
         SneakEyesApp.getAppComponent().inject(this);
-
-        mGoogleApiClient = new GoogleApiClient.Builder(this)
-                .addApi(LocationServices.API)
-                .addConnectionCallbacks(this)
-                .addOnConnectionFailedListener(this)
-                .build();
     }
 
     // Method is called, when Service is started by incoming intent
@@ -196,37 +190,34 @@ public class SneakingService extends Service implements
         return null;
     }
 
+    // Cancel timer
+    private void cancelTimer() {
+        if (mTimer != null) {
+            mTimer.cancel();
+        }
+    }
+
     // --- PHOTOTAKER CALLBACKS ----------
 
     // Method is called by PhotoTaker, when photo is taken.
     @Override
     public void onPhotoTaken(Bitmap photo) {
-
         Log.d(LOG_TAG, "Photo received");
 
         // Save photo
         mPhoto = photo;
 
-        // If Google Play Services are available
-        if (isGooglePlayServicesAvailable()) {
-            Log.d(LOG_TAG, "Connecting to GoogleApiClient");
+        Log.d(LOG_TAG, "Fetching location");
 
-            // Connect to GoogleApiClient to get location info
-            mGoogleApiClient.connect();
-        } else {
-            // Google Play Services not available
-            Log.d(LOG_TAG, "Google Play Services not available");
-            Log.d(LOG_TAG, "Start posting without location");
+        // Fetch location
+        mLocationFetcher.fetchLocation(this);
 
-            // Start uploading photo to VK wall (photo will be posted without location info).
-            mPhotoUploader.uploadPhoto(mPhoto, null, this);
-        }
-    }
+        // Create new timer
+        mTimer = new Timer();
 
-    // Return true if Google Play Services available
-    private boolean isGooglePlayServicesAvailable() {
-        int errorCode = GooglePlayServicesUtil.isGooglePlayServicesAvailable(this);
-        return errorCode == ConnectionResult.SUCCESS;
+        // Schedule timer to run mLocationRequestTimeoutTask,
+        // if no location received for LOCATION_REQUEST_WAIT_INTERVAL.
+        mTimer.schedule(mLocationRequestTimeoutTask, LOCATION_REQUEST_WAIT_INTERVAL);
     }
 
     // Method is called by PhotoTaker, when error while taking photo occurs
@@ -236,78 +227,38 @@ public class SneakingService extends Service implements
         stopSelf();
     }
 
-    // --- GOOGLE LOCATION SERVICE CALLBACKS ----------
+    // --- LOCATIONFETCHER CALLBACKS ----------
 
-    // Method is called, when GoogleApiClient connection established
+    // Method is called when LocationFetcher successfully fetches location
     @Override
-    public void onConnected(Bundle bundle) {
-
-        Log.d(LOG_TAG, "Connected to GoogleApiClient");
-
-        // Create request for current location
-        mLocationRequest = LocationRequest.create();
-        mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
-        mLocationRequest.setNumUpdates(1);  // We need only one update
-        mLocationRequest.setInterval(0);    // We need it as soon as possible
-        // The smallest displacement in meters the user must move between location updates
-        // is by default set to 0, so we will receive onLocationChange() even if the user is not moving.
-
-        Log.d(LOG_TAG, "Sending location request");
-
-        // Send request
-        LocationServices.FusedLocationApi.requestLocationUpdates(mGoogleApiClient, mLocationRequest, this);
-
-        // Create new timer
-        mTimer = new Timer();
-
-        // Schedule timer to run mLocationRequestTimeoutTask,
-        // if no location updates are received for LOCATION_REQUEST_WAIT_INTERVAL.
-        mTimer.schedule(mLocationRequestTimeoutTask, LOCATION_REQUEST_WAIT_INTERVAL);
-    }
-
-    // Method is called, when GoogleApiClient connection suspended
-    @Override
-    public void onConnectionSuspended(int i) {
-        Log.d(LOG_TAG, "GoogleApiClient connection has been suspended");
-
-        mGoogleApiClient.disconnect();
-
-        Log.d(LOG_TAG, "Start posting without location");
-
-        // GoogleApiClient connection has been suspend.
-        // Start uploading photo to VK wall (photo will be posted without location info).
-        mPhotoUploader.uploadPhoto(mPhoto, null, this);
-    }
-
-    // Method is called, when GoogleApiClient connection failed
-    @Override
-    public void onConnectionFailed(ConnectionResult connectionResult) {
-        Log.i(LOG_TAG, "GoogleApiClient connection has failed");
-
-        mGoogleApiClient.disconnect();
-
-        Log.d(LOG_TAG, "Start posting without location");
-
-        // GoogleApiClient connection has failed.
-        // Start uploading photo to VK wall (photo will be posted without location info).
-        mPhotoUploader.uploadPhoto(mPhoto, null, this);
-    }
-
-    // Method is called, when location information received
-    @Override
-    public void onLocationChanged(Location location) {
-
-        //  Location update received, so cancel timer
-        mTimer.cancel();
-
-        Log.d(LOG_TAG, "Received location: " + location.toString());
-
-        mGoogleApiClient.disconnect();
-
+    public void onLocationFetchSuccess(Location location) {
+        Log.d(LOG_TAG, "Location received");
         Log.d(LOG_TAG, "Start posting with location");
 
-        // Start uploading photo to VK wall (photo will be posted with location info).
+        //  Location received, so cancel timer
+        cancelTimer();
+
+        // Stop LocationFetcher
+        mLocationFetcher.stopFetchingLocation();
+
+        // Start uploading photo to VK wall with location info.
         mPhotoUploader.uploadPhoto(mPhoto, location, this);
+    }
+
+    // Method is called when there is error in LocationFetcher fetching location
+    @Override
+    public void onLocationFetchError() {
+        Log.d(LOG_TAG, "Error receiving location");
+        Log.d(LOG_TAG, "Start posting without location");
+
+        // Error receiving location, nothing to wait for, so cancel timer
+        cancelTimer();
+
+        // Stop LocationFetcher
+        mLocationFetcher.stopFetchingLocation();
+
+        // Start uploading photo to VK wall without location info.
+        mPhotoUploader.uploadPhoto(mPhoto, null, this);
     }
 
     // --- PHOTOUPLOADER CALLBACKS ----------
@@ -316,13 +267,24 @@ public class SneakingService extends Service implements
     @Override
     public void onPhotoUploadSuccess() {
         Log.d(LOG_TAG, "Posted successfully. Stopping...");
-        stopSelf();
+        stopSneakingService();
     }
 
     // Method is called, if there is error in PhotoUploader posting photo to VK
     @Override
     public void onPhotoUploadError() {
         Log.d(LOG_TAG, "Error posting. Stopping...");
+        stopSneakingService();
+    }
+
+    private void stopSneakingService() {
+        // Cancel timer (just in case it isn't cancelled yet)
+        cancelTimer();
+
+        // Clear photo
+        mPhoto = null;
+
+        // Stop service
         stopSelf();
     }
 }

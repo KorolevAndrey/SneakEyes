@@ -20,6 +20,9 @@ import com.vk.sdk.api.photo.VKUploadImage;
 
 // Posts photos to user's VK wall.
 // User of PhotoUploader must implement PhotoUploadedListener to receive callbacks
+
+// Sequence of execution: 1. uploadPhoto(), 2. loadPhotoToVKWall(), 3. makePostToVKWall()
+
 public class PhotoUploader {
 
     // Tag for logging
@@ -167,6 +170,7 @@ public class PhotoUploader {
     private void reportSuccess() {
         if (mPhotoUploadedListener != null) {
             mPhotoUploadedListener.onPhotoUploadSuccess();
+            unregisterListener();
         }
     }
 
@@ -174,6 +178,12 @@ public class PhotoUploader {
     private void reportError() {
         if (mPhotoUploadedListener != null) {
             mPhotoUploadedListener.onPhotoUploadError();
+            unregisterListener();
         }
+    }
+
+    // Unregister listener
+    private void unregisterListener() {
+        mPhotoUploadedListener = null;
     }
 }

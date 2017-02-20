@@ -213,9 +213,10 @@ public class PhotoTaker implements Camera.PictureCallback, Camera.PreviewCallbac
 
     // Report success to the listener
     private void reportSuccess(Bitmap photo) {
-        // Pass photo Bitmap to the listener
         if (mPhotoResultListener != null) {
+            // Pass photo Bitmap to the listener
             mPhotoResultListener.onPhotoTaken(photo);
+            unregisterListener();
         }
     }
 
@@ -223,6 +224,12 @@ public class PhotoTaker implements Camera.PictureCallback, Camera.PreviewCallbac
     private void reportError() {
         if (mPhotoResultListener != null) {
             mPhotoResultListener.onPhotoError();
+            unregisterListener();
         }
+    }
+
+    // Unregister listener
+    private void unregisterListener() {
+        mPhotoResultListener = null;
     }
 }

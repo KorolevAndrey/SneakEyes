@@ -1,0 +1,170 @@
+package com.gpetuhov.android.sneakeyes;
+
+import android.content.Context;
+import android.location.Location;
+import android.os.Bundle;
+import android.util.Log;
+
+import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.GooglePlayServicesUtil;
+import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.location.LocationListener;
+import com.google.android.gms.location.LocationRequest;
+import com.google.android.gms.location.LocationServices;
+
+// Gets current device location.
+// User of LocationFetcher must implement LocationFetchedListener to receive callbacks.
+
+// Sequence of execution:
+// 1. fetchLocation()
+// 2. GoogleApiClient.connect()
+// 3. onConnected() or onConnectionFailed() or onConnectionSuspended()
+// 4. LocationServices.FusedLocationApi.requestLocationUpdates()
+// 5. onLocationChanged()
+
+public class LocationFetcher implements
+        GoogleApiClient.ConnectionCallbacks,
+        GoogleApiClient.OnConnectionFailedListener,
+        LocationListener {
+
+    // Tag for logging
+    private static final String LOG_TAG = LocationFetcher.class.getName();
+
+    // Needed by Google Location Services
+    private Context mContext;
+
+    // Keeps Google API Client for location fetching
+    private GoogleApiClient mGoogleApiClient;
+
+    // Keeps location request
+    LocationRequest mLocationRequest;
+
+    // Keeps reference to the listener to LocationFetcher
+    LocationFetchedListener mLocationFetchedListener;
+
+    // User of LocationFetcher must implement this interface to receive callbacks
+    public interface LocationFetchedListener {
+        void onLocationFetchSuccess(Location location);
+        void onLocationFetchError();
+    }
+
+    public LocationFetcher(Context context) {
+        // Save context
+        mContext = context;
+
+        // Create Google API Client
+        mGoogleApiClient = new GoogleApiClient.Builder(mContext)
+                .addApi(LocationServices.API)
+                .addConnectionCallbacks(this)
+                .addOnConnectionFailedListener(this)
+                .build();
+    }
+
+    // Fetches location
+    public void fetchLocation(LocationFetchedListener listener) {
+
+        // Save reference to the listener
+        mLocationFetchedListener = listener;
+
+        // If Google Play Services are available
+        if (isGooglePlayServicesAvailable()) {
+            Log.d(LOG_TAG, "Connecting to GoogleApiClient");
+
+            // Connect to GoogleApiClient to get location info
+            mGoogleApiClient.connect();
+        } else {
+            // Google Play Services not available
+            Log.d(LOG_TAG, "Google Play Services not available");
+            reportError();
+        }
+    }
+
+    // This method must be called when LocationFetcher is no longer needed.
+    // (Disconnects LocationFetcher from GoogleApiClient)
+    public void stopFetchingLocation() {
+        if (mGoogleApiClient.isConnected()) {
+            mGoogleApiClient.disconnect();
+        }
+    }
+
+    // Return true if Google Play Services available
+    private boolean isGooglePlayServicesAvailable() {
+        int errorCode = GooglePlayServicesUtil.isGooglePlayServicesAvailable(mContext);
+        return errorCode == ConnectionResult.SUCCESS;
+    }
+
+    // Method is called, when GoogleApiClient connection established
+    @Override
+    public void onConnected(Bundle bundle) {
+
+        Log.d(LOG_TAG, "Connected to GoogleApiClient");
+
+        // Create request for current location
+        mLocationRequest = LocationRequest.create();
+        mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+        mLocationRequest.setNumUpdates(1);  // We need only one update
+        mLocationRequest.setInterval(0);    // We need it as soon as possible
+        // The smallest displacement in meters the user must move between location updates
+        // is by default set to 0, so we will receive onLocationChange() even if the user is not moving.
+
+        Log.d(LOG_TAG, "Sending location request");
+
+        // Send request
+        LocationServices.FusedLocationApi.requestLocationUpdates(mGoogleApiClient, mLocationRequest, this);
+    }
+
+    // Method is called, when GoogleApiClient connection suspended
+    @Override
+    public void onConnectionSuspended(int i) {
+        Log.d(LOG_TAG, "GoogleApiClient connection has been suspended");
+
+        // GoogleApiClient connection has been suspended.
+        // Report error to listener
+        reportError();
+    }
+
+    // Method is called, when GoogleApiClient connection failed
+    @Override
+    public void onConnectionFailed(ConnectionResult connectionResult) {
+        Log.i(LOG_TAG, "GoogleApiClient connection has failed");
+
+        // GoogleApiClient connection has failed.
+        // Report error to listener
+        reportError();
+    }
+
+    // Method is called, when location information received
+    @Override
+    public void onLocationChanged(Location location) {
+        Log.d(LOG_TAG, "Received location: " + location.toString());
+
+        // Pass received location to the listener
+        reportSuccess(location);
+    }
+
+    // Report success to the listener
+    private void reportSuccess(Location location) {
+        stopFetchingLocation();
+
+        if (mLocationFetchedListener != null) {
+            // Pass fetched location to the listener
+            mLocationFetchedListener.onLocationFetchSuccess(location);
+            unregisterListener();
+        }
+    }
+
+    // Report error to the listener
+    private void reportError() {
+        stopFetchingLocation();
+
+        if (mLocationFetchedListener != null) {
+            mLocationFetchedListener.onLocationFetchError();
+            unregisterListener();
+        }
+    }
+
+    // Unregister listener
+    private void unregisterListener() {
+        mLocationFetchedListener = null;
+    }
+}

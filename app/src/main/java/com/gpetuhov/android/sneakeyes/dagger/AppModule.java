@@ -4,6 +4,7 @@ import android.app.Application;
 import android.content.SharedPreferences;
 import android.support.v7.preference.PreferenceManager;
 
+import com.gpetuhov.android.sneakeyes.LocationFetcher;
 import com.gpetuhov.android.sneakeyes.PhotoTaker;
 import com.gpetuhov.android.sneakeyes.PhotoUploader;
 import com.gpetuhov.android.sneakeyes.utils.UtilsPrefs;
@@ -60,5 +61,13 @@ public class AppModule {
     PhotoUploader providesPhotoUploader() {
         PhotoUploader photoUploader = new PhotoUploader();
         return photoUploader;
+    }
+
+    // Returns instance of LocationFetcher
+    @Provides
+    @Singleton
+    LocationFetcher providesLocationFetcher(Application application) {
+        LocationFetcher locationFetcher = new LocationFetcher(application);
+        return locationFetcher;
     }
 }
