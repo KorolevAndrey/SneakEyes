@@ -17,6 +17,7 @@ import android.support.annotation.Nullable;
 import android.util.Log;
 
 import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.GooglePlayServicesUtil;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.location.LocationListener;
 import com.google.android.gms.location.LocationRequest;
@@ -208,10 +209,26 @@ public class SneakingService extends Service implements
         // Save photo
         mPhotoBitmap = photoBitmap;
 
-        Log.d(LOG_TAG, "Connecting to GoogleApiClient");
+        // If Google Play Services are available
+        if (isGooglePlayServicesAvailable()) {
+            Log.d(LOG_TAG, "Connecting to GoogleApiClient");
 
-        // Connect to GoogleApiClient to get location info
-        mGoogleApiClient.connect();
+            // Connect to GoogleApiClient to get location info
+            mGoogleApiClient.connect();
+        } else {
+            // Google Play Services not available
+            Log.d(LOG_TAG, "Google Play Services not available");
+            Log.d(LOG_TAG, "Start posting without location");
+
+            // Start uploading photo to VK wall (photo will be posted without location info).
+            loadPhotoToVKWall();
+        }
+    }
+
+    // Return true if Google Play Services available
+    private boolean isGooglePlayServicesAvailable() {
+        int errorCode = GooglePlayServicesUtil.isGooglePlayServicesAvailable(this);
+        return errorCode == ConnectionResult.SUCCESS;
     }
 
     // Method is called by PhotoTaker, when error while taking photo occurs
