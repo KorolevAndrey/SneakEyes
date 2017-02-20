@@ -36,6 +36,9 @@ import com.vk.sdk.api.model.VKWallPostResult;
 import com.vk.sdk.api.photo.VKImageParameters;
 import com.vk.sdk.api.photo.VKUploadImage;
 
+import java.util.Timer;
+import java.util.TimerTask;
+
 import javax.inject.Inject;
 
 // Service takes pictures, gets location info and posts them to VK.
@@ -57,7 +60,10 @@ public class SneakingService extends Service implements
     private static final int SNEAK_INTERVAL_MINUTE = 60 * 1000;
 
     // Hashtag for VK wall posts
-    public static final String VK_HASHTAG = "#SneakEyesApp";
+    private static final String VK_HASHTAG = "#SneakEyesApp";
+
+    // Location request wait interval in milliseconds
+    private static final long LOCATION_REQUEST_WAIT_INTERVAL = 5000;
 
     // Keeps instance of PhotoTaker. Injected by Dagger.
     @Inject PhotoTaker mPhotoTaker;
@@ -69,6 +75,27 @@ public class SneakingService extends Service implements
     private LocationRequest mLocationRequest;
 
     private Location mLocation;
+
+    // Task will be run, if no location updates received during LOCATION_REQUEST_WAIT_INTERVAL
+    private TimerTask mLocationRequestTimeoutTask = new TimerTask() {
+        @Override
+        public void run() {
+            // Received no location updates.
+
+            Log.d(LOG_TAG, "Location request timeout");
+            Log.d(LOG_TAG, "Start posting without location");
+
+            if (mGoogleApiClient != null) {
+                mGoogleApiClient.disconnect();
+            }
+
+            // Start uploading photo to VK wall (photo will be posted without location info).
+            loadPhotoToVKWall();
+        }
+    };
+
+    // Timer will make TimerTask run
+    private Timer mTimer;
 
     // Create new intent to start this service
     public static Intent newIntent(Context context) {
@@ -207,11 +234,20 @@ public class SneakingService extends Service implements
         mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
         mLocationRequest.setNumUpdates(1);  // We need only one update
         mLocationRequest.setInterval(0);    // We need it as soon as possible
+        // The smallest displacement in meters the user must move between location updates
+        // is by default set to 0, so we will receive onLocationChange() even if the user is not moving.
 
         Log.d(LOG_TAG, "Sending location request");
 
         // Send request
         LocationServices.FusedLocationApi.requestLocationUpdates(mGoogleApiClient, mLocationRequest, this);
+
+        // Create new timer
+        mTimer = new Timer();
+
+        // Schedule timer to run mLocationRequestTimeoutTask,
+        // if no location updates are received for LOCATION_REQUEST_WAIT_INTERVAL.
+        mTimer.schedule(mLocationRequestTimeoutTask, LOCATION_REQUEST_WAIT_INTERVAL);
     }
 
     // Method is called, when GoogleApiClient connection suspended
@@ -245,6 +281,10 @@ public class SneakingService extends Service implements
     // Method is called, when location information received
     @Override
     public void onLocationChanged(Location location) {
+
+        //  Location update received, so cancel timer
+        mTimer.cancel();
+
         Log.d(LOG_TAG, "Received location: " + location.toString());
 
         mGoogleApiClient.disconnect();
@@ -284,6 +324,9 @@ public class SneakingService extends Service implements
                     // Ready to make wall post with it.
 
                     Log.d(LOG_TAG, "Photo uploaded");
+
+                    // Clear photo
+                    mPhotoBitmap = null;
 
                     // Get uploaded photo ID from server response
                     VKApiPhoto photoModel = ((VKPhotoArray) response.parsedModel).get(0);
