@@ -39,10 +39,10 @@ import com.vk.sdk.api.photo.VKUploadImage;
 import javax.inject.Inject;
 
 // Service takes pictures, gets location info and posts them to VK.
-// Implements PhotoTaker.Callback to receive callbacks from PhotoTaker, when photo is ready.
+// Implements PhotoTaker.PhotoResultListener to receive callbacks from PhotoTaker.
 // Service runs on the application MAIN thread!
 public class SneakingService extends Service implements
-        PhotoTaker.Callback,
+        PhotoTaker.PhotoResultListener,
         GoogleApiClient.ConnectionCallbacks,
         GoogleApiClient.OnConnectionFailedListener,
         LocationListener {
@@ -170,6 +170,8 @@ public class SneakingService extends Service implements
         return null;
     }
 
+    // --- PHOTOTAKER CALLBACKS ----------
+
     // Method is called by PhotoTaker, when photo is taken.
     @Override
     public void onPhotoTaken(Bitmap photoBitmap) {
@@ -184,6 +186,15 @@ public class SneakingService extends Service implements
         // Connect to GoogleApiClient to get location info
         mGoogleApiClient.connect();
     }
+
+    // Method is called by PhotoTaker, when error while taking photo occurs
+    @Override
+    public void onPhotoError() {
+        Log.d(LOG_TAG, "Error taking photo. Stopping...");
+        stopSelf();
+    }
+
+    // --- GOOGLE LOCATION SERVICE CALLBACKS ----------
 
     // Method is called, when GoogleApiClient connection established
     @Override
@@ -247,10 +258,12 @@ public class SneakingService extends Service implements
         loadPhotoToVKWall();
     }
 
+    // --- VK LOGIC ----------
+
     // Loading photo to VK wall is done in 2 steps:
     // 1. Upload photo to the server
     // 2. Make wall post with this uploaded photo
-    void loadPhotoToVKWall() {
+    private void loadPhotoToVKWall() {
         // Check if photo is available
         if (mPhotoBitmap != null) {
             // Photo is available. Start uploading to the server.

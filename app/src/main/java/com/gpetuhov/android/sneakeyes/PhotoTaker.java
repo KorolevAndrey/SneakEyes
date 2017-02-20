@@ -13,18 +13,19 @@ import java.io.IOException;
 // Takes photos from phone camera.
 // Implements Camera.PictureCallback to handle photos taken by the camera.
 // Implements Camera.PreviewCallback to take pictures when preview is ready only.
-// Host of PhotoTaker must implement PhotoTaker.Callback to receive callback,
+// User of PhotoTaker must implement PhotoTaker.PhotoResultListener to receive callback,
 // when photo is taken and ready.
 
-// Sequence of execution: 1. takePhoto(), 2. onPreviewFrame(), 3. onPictureTaken()
+// Sequence of execution: 1. takePhoto(), 2. onPreviewFrame(), 3. onPictureTaken() or onPictureError()
 
 public class PhotoTaker implements Camera.PictureCallback, Camera.PreviewCallback {
 
     // Tag for logging
     private static final String LOG_TAG = PhotoTaker.class.getName();
 
+    // Output photo dimensions
+    // PhotoTaker will scale photo from the camera to fit these dimensions
     public static final int OUTPUT_PHOTO_WIDTH = 800;
-
     public static final int OUTPUT_PHOTO_HEIGHT = 600;
 
     // Context is needed for checking camera availability and saving photos
@@ -33,12 +34,13 @@ public class PhotoTaker implements Camera.PictureCallback, Camera.PreviewCallbac
     // Keeps camera instance
     private Camera mCamera;
 
-    // Keeps reference to the host of PhotoTaker
-    private Callback mCallback;
+    // Keeps reference to the listener to PhotoTaker
+    private PhotoResultListener mPhotoResultListener;
 
-    // Host of PhotoTaker must implement this interface to receive callbacks
-    public interface Callback {
+    // User of PhotoTaker must implement this interface to receive callbacks
+    public interface PhotoResultListener {
         void onPhotoTaken(Bitmap photoBitmap);
+        void onPhotoError();
     }
 
     public PhotoTaker(Context context) {
@@ -47,18 +49,39 @@ public class PhotoTaker implements Camera.PictureCallback, Camera.PreviewCallbac
 
     // Check camera availability, initialize camera and start image capture.
     // Call this method to take photos.
-    public void takePhoto(Callback callback) {
-        // Save reference to the host of PhotoTaker
-        mCallback = callback;
+    public void takePhoto(PhotoResultListener photoResultListener) {
+        // Save reference to the listener
+        mPhotoResultListener = photoResultListener;
 
+        // CHeck if camera is available
         if (isCameraAvailable()) {
+            // Camera is available
+
+            // Release camera (because camera may be in use by previous operations)
             releaseCamera();
+
+            // Try to get camera instance
             if (getCameraInstance()) {
-                initCameraAndStartPreview();
+                // Camera instance acquired
+
+                // Try to initialize camera and start preview
+                boolean success = initCameraAndStartPreview();
+
+                // If not success, report error to the listener
+                if (!success) {
+                    reportError();
+                }
+
                 // Photo will be taken in callback method, when preview is ready.
+            } else {
+                // Camera instance not acquired
+                Log.d(LOG_TAG, "Camera instance not acquired");
+                reportError();
             }
         } else {
-            Log.e(LOG_TAG, "No camera on this device");
+            // Camera is not available
+            Log.d(LOG_TAG, "No camera on this device");
+            reportError();
         }
     }
 
@@ -92,6 +115,7 @@ public class PhotoTaker implements Camera.PictureCallback, Camera.PreviewCallbac
         }
         catch (Exception e){
             // Camera is not available (in use or does not exist)
+            // Do nothing, because we will return false in this case
             Log.e(LOG_TAG, "Getting camera instance failed");
         }
 
@@ -100,10 +124,14 @@ public class PhotoTaker implements Camera.PictureCallback, Camera.PreviewCallbac
     }
 
     // Initialize camera and start preview
-    private void initCameraAndStartPreview() {
+    private boolean initCameraAndStartPreview() {
 
         Log.d(LOG_TAG, "Initializing camera");
 
+        // True if operation completed successfully
+        boolean successFlag = true;
+
+        // If camera instance is available
         if (mCamera != null) {
             try {
                 // We don't need to show preview to user,
@@ -117,9 +145,16 @@ public class PhotoTaker implements Camera.PictureCallback, Camera.PreviewCallbac
                 // Start preview. When preview is ready, onPreviewFrame() will be called once.
                 mCamera.startPreview();
             } catch (IOException e) {
+                // Error while initializing camera
                 Log.e(LOG_TAG, "Error while initializing camera");
+                successFlag = false;
             }
+        } else {
+            // No camera instance available
+            successFlag = false;
         }
+
+        return successFlag;
     }
 
     // Method is called, when preview is ready (camera is ready to take pictures).
@@ -149,10 +184,7 @@ public class PhotoTaker implements Camera.PictureCallback, Camera.PreviewCallbac
         // to Bitmap, scaled to output width and height.
         Bitmap photoBitmap = getScaledBitmap(data, OUTPUT_PHOTO_WIDTH, OUTPUT_PHOTO_HEIGHT);
 
-        // Pass photo Bitmap to the host of PhotoTaker
-        if (mCallback != null) {
-            mCallback.onPhotoTaken(photoBitmap);
-        }
+        reportSuccess(photoBitmap);
     }
 
     // Get scaled Bitmap from byte array
@@ -177,5 +209,20 @@ public class PhotoTaker implements Camera.PictureCallback, Camera.PreviewCallbac
         options.inSampleSize = inSampleSize;
 
         return BitmapFactory.decodeByteArray(data, 0, data.length, options);
+    }
+
+    // Report success to the listener
+    private void reportSuccess(Bitmap bitmap) {
+        // Pass photo Bitmap to the listener
+        if (mPhotoResultListener != null) {
+            mPhotoResultListener.onPhotoTaken(bitmap);
+        }
+    }
+
+    // Report error to the listener
+    private void reportError() {
+        if (mPhotoResultListener != null) {
+            mPhotoResultListener.onPhotoError();
+        }
     }
 }
