@@ -5,6 +5,7 @@ import android.content.SharedPreferences;
 import android.support.v7.preference.PreferenceManager;
 
 import com.gpetuhov.android.sneakeyes.PhotoTaker;
+import com.gpetuhov.android.sneakeyes.PhotoUploader;
 import com.gpetuhov.android.sneakeyes.utils.UtilsPrefs;
 
 import javax.inject.Singleton;
@@ -51,5 +52,13 @@ public class AppModule {
     PhotoTaker providesPhotoTaker(Application application) {
         PhotoTaker photoTaker = new PhotoTaker(application);
         return photoTaker;
+    }
+
+    // Returns instance of PhotoUploader
+    @Provides
+    @Singleton
+    PhotoUploader providesPhotoUploader() {
+        PhotoUploader photoUploader = new PhotoUploader();
+        return photoUploader;
     }
 }

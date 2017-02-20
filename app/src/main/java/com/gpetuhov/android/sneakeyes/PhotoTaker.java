@@ -39,7 +39,7 @@ public class PhotoTaker implements Camera.PictureCallback, Camera.PreviewCallbac
 
     // User of PhotoTaker must implement this interface to receive callbacks
     public interface PhotoResultListener {
-        void onPhotoTaken(Bitmap photoBitmap);
+        void onPhotoTaken(Bitmap photo);
         void onPhotoError();
     }
 
@@ -212,10 +212,10 @@ public class PhotoTaker implements Camera.PictureCallback, Camera.PreviewCallbac
     }
 
     // Report success to the listener
-    private void reportSuccess(Bitmap bitmap) {
+    private void reportSuccess(Bitmap photo) {
         // Pass photo Bitmap to the listener
         if (mPhotoResultListener != null) {
-            mPhotoResultListener.onPhotoTaken(bitmap);
+            mPhotoResultListener.onPhotoTaken(photo);
         }
     }
 

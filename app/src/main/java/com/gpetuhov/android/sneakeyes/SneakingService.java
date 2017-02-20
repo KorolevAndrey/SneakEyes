@@ -23,20 +23,7 @@ import com.google.android.gms.location.LocationListener;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
 import com.gpetuhov.android.sneakeyes.utils.UtilsNet;
-import com.vk.sdk.VKAccessToken;
 import com.vk.sdk.VKSdk;
-import com.vk.sdk.api.VKApi;
-import com.vk.sdk.api.VKApiConst;
-import com.vk.sdk.api.VKError;
-import com.vk.sdk.api.VKParameters;
-import com.vk.sdk.api.VKRequest;
-import com.vk.sdk.api.VKResponse;
-import com.vk.sdk.api.model.VKApiPhoto;
-import com.vk.sdk.api.model.VKAttachments;
-import com.vk.sdk.api.model.VKPhotoArray;
-import com.vk.sdk.api.model.VKWallPostResult;
-import com.vk.sdk.api.photo.VKImageParameters;
-import com.vk.sdk.api.photo.VKUploadImage;
 
 import java.util.Timer;
 import java.util.TimerTask;
@@ -48,6 +35,7 @@ import javax.inject.Inject;
 // Service runs on the application MAIN thread!
 public class SneakingService extends Service implements
         PhotoTaker.PhotoResultListener,
+        PhotoUploader.PhotoUploadedListener,
         GoogleApiClient.ConnectionCallbacks,
         GoogleApiClient.OnConnectionFailedListener,
         LocationListener {
@@ -61,22 +49,21 @@ public class SneakingService extends Service implements
     // One minute in milliseconds
     private static final int SNEAK_INTERVAL_MINUTE = 60 * 1000;
 
-    // Hashtag for VK wall posts
-    private static final String VK_HASHTAG = "#SneakEyesApp";
-
     // Location request wait interval in milliseconds
     private static final long LOCATION_REQUEST_WAIT_INTERVAL = 5000;
 
     // Keeps instance of PhotoTaker. Injected by Dagger.
     @Inject PhotoTaker mPhotoTaker;
 
-    private Bitmap mPhotoBitmap;
+    // Keeps instance of PhotoUploader. Injected by Dagger.
+    @Inject PhotoUploader mPhotoUploader;
+
+    // Keeps taken photo
+    private Bitmap mPhoto;
 
     private GoogleApiClient mGoogleApiClient;
 
     private LocationRequest mLocationRequest;
-
-    private Location mLocation;
 
     // Task will be run, if no location updates received during LOCATION_REQUEST_WAIT_INTERVAL
     private TimerTask mLocationRequestTimeoutTask = new TimerTask() {
@@ -92,7 +79,7 @@ public class SneakingService extends Service implements
             }
 
             // Start uploading photo to VK wall (photo will be posted without location info).
-            loadPhotoToVKWall();
+            mPhotoUploader.uploadPhoto(mPhoto, null, SneakingService.this);
         }
     };
 
@@ -213,12 +200,12 @@ public class SneakingService extends Service implements
 
     // Method is called by PhotoTaker, when photo is taken.
     @Override
-    public void onPhotoTaken(Bitmap photoBitmap) {
+    public void onPhotoTaken(Bitmap photo) {
 
         Log.d(LOG_TAG, "Photo received");
 
         // Save photo
-        mPhotoBitmap = photoBitmap;
+        mPhoto = photo;
 
         // If Google Play Services are available
         if (isGooglePlayServicesAvailable()) {
@@ -232,7 +219,7 @@ public class SneakingService extends Service implements
             Log.d(LOG_TAG, "Start posting without location");
 
             // Start uploading photo to VK wall (photo will be posted without location info).
-            loadPhotoToVKWall();
+            mPhotoUploader.uploadPhoto(mPhoto, null, this);
         }
     }
 
@@ -289,7 +276,7 @@ public class SneakingService extends Service implements
 
         // GoogleApiClient connection has been suspend.
         // Start uploading photo to VK wall (photo will be posted without location info).
-        loadPhotoToVKWall();
+        mPhotoUploader.uploadPhoto(mPhoto, null, this);
     }
 
     // Method is called, when GoogleApiClient connection failed
@@ -303,7 +290,7 @@ public class SneakingService extends Service implements
 
         // GoogleApiClient connection has failed.
         // Start uploading photo to VK wall (photo will be posted without location info).
-        loadPhotoToVKWall();
+        mPhotoUploader.uploadPhoto(mPhoto, null, this);
     }
 
     // Method is called, when location information received
@@ -317,127 +304,25 @@ public class SneakingService extends Service implements
 
         mGoogleApiClient.disconnect();
 
-        // Save location info
-        mLocation = location;
-
         Log.d(LOG_TAG, "Start posting with location");
 
         // Start uploading photo to VK wall (photo will be posted with location info).
-        loadPhotoToVKWall();
+        mPhotoUploader.uploadPhoto(mPhoto, location, this);
     }
 
-    // --- VK LOGIC ----------
+    // --- PHOTOUPLOADER CALLBACKS ----------
 
-    // Loading photo to VK wall is done in 2 steps:
-    // 1. Upload photo to the server
-    // 2. Make wall post with this uploaded photo
-    private void loadPhotoToVKWall() {
-        // Check if photo is available
-        if (mPhotoBitmap != null) {
-            // Photo is available. Start uploading to the server.
-
-            Log.d(LOG_TAG, "Uploading photo to VK server");
-
-            // Create VK request
-            VKRequest request =
-                    VKApi.uploadWallPhotoRequest(
-                            new VKUploadImage(mPhotoBitmap, VKImageParameters.jpgImage(0.9f)),
-                            getUserVKId(), 0);
-
-            // Execute request and attach a listener for results
-            request.executeWithListener(new VKRequest.VKRequestListener() {
-                @Override
-                public void onComplete(VKResponse response) {
-                    // Photo is uploaded to the server.
-                    // Ready to make wall post with it.
-
-                    Log.d(LOG_TAG, "Photo uploaded");
-
-                    // Clear photo
-                    mPhotoBitmap = null;
-
-                    // Get uploaded photo ID from server response
-                    VKApiPhoto photoModel = ((VKPhotoArray) response.parsedModel).get(0);
-
-                    // Make wall post with attached photo
-                    makePostToVKWall(new VKAttachments(photoModel), createWallPostMessage(), getUserVKId());
-                }
-                @Override
-                public void onError(VKError error) {
-                    // Error uploading photo to server.
-                    // Stop service.
-                    Log.d(LOG_TAG, "Error uploading photo. Stopping...");
-                    stopSelf();
-                }
-            });
-        } else {
-            // Photo is not available. Stop service
-            Log.d(LOG_TAG, "No photo available. Stopping...");
-            stopSelf();
-        }
+    // Method is called, if PhotoUploader successfully posts photo to VK
+    @Override
+    public void onPhotoUploadSuccess() {
+        Log.d(LOG_TAG, "Posted successfully. Stopping...");
+        stopSelf();
     }
 
-    // Return VK user ID
-    private int getUserVKId() {
-        // Get current VK access token
-        final VKAccessToken vkAccessToken = VKAccessToken.currentToken();
-
-        // Get user ID from access token
-        return vkAccessToken != null ? Integer.parseInt(vkAccessToken.userId) : 0;
-    }
-
-    // Make post to the user's VK wall with provided attachments and message
-    private void makePostToVKWall(VKAttachments att, String msg, final int ownerId) {
-
-        Log.d(LOG_TAG, "Making VK wall post");
-
-        // Create parameters for the wall post request
-        VKParameters parameters = new VKParameters();
-        parameters.put(VKApiConst.OWNER_ID, String.valueOf(ownerId));
-        parameters.put(VKApiConst.ATTACHMENTS, att);
-        parameters.put(VKApiConst.MESSAGE, msg);
-
-        // Create wall post request
-        VKRequest post = VKApi.wall().post(parameters);
-        post.setModelClass(VKWallPostResult.class);
-
-        // Execute wall post request and attach a listener for results
-        post.executeWithListener(new VKRequest.VKRequestListener() {
-            @Override
-            public void onComplete(VKResponse response) {
-                // Post was added
-                // All work is done. Service can be stopped.
-                // (Services must be stopped manually)
-                Log.d(LOG_TAG, "Successfully posted. Stopping...");
-                stopSelf();
-            }
-            @Override
-            public void onError(VKError error) {
-                // Error
-                // Stop Service anyway, because
-                // Services must be stopped manually.
-                Log.d(LOG_TAG, "Error making post. Stopping...");
-                stopSelf();
-            }
-        });
-    }
-
-    // Return message for VK wall post
-    private String createWallPostMessage() {
-        String message;
-
-        // If location info is available
-        if (mLocation != null) {
-            // Convert latitude and longitude to string
-            String latitude = Double.toString(mLocation.getLatitude());
-            String longitude = Double.toString(mLocation.getLongitude());
-            // Construct message
-            message = "Current location: " + latitude + ", " + longitude + " " + VK_HASHTAG;
-        } else {
-            // If location info is not available, include only hashtag into message
-            message = VK_HASHTAG;
-        }
-
-        return message;
+    // Method is called, if there is error in PhotoUploader posting photo to VK
+    @Override
+    public void onPhotoUploadError() {
+        Log.d(LOG_TAG, "Error posting. Stopping...");
+        stopSelf();
     }
 }
