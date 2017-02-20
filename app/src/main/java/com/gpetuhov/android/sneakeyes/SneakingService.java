@@ -22,6 +22,7 @@ import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.location.LocationListener;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
+import com.gpetuhov.android.sneakeyes.utils.UtilsNet;
 import com.vk.sdk.VKAccessToken;
 import com.vk.sdk.VKSdk;
 import com.vk.sdk.api.VKApi;
@@ -175,15 +176,25 @@ public class SneakingService extends Service implements
 
         // IMPORTANT: This runs on the application MAIN thread!
 
-        // If the user is logged in to VK
-        if (VKSdk.isLoggedIn()) {
-            // Take photo from the camera
-            Log.d(LOG_TAG, "User is logged in. Sneaking...");
-            Log.d(LOG_TAG, "Taking photo");
-            mPhotoTaker.takePhoto(this);
+        // Check network status
+        if (UtilsNet.isNetworkAvailableAndConnected(this)) {
+            // Network available
+
+            // If the user is logged in to VK
+            if (VKSdk.isLoggedIn()) {
+                // Take photo from the camera
+                Log.d(LOG_TAG, "User is logged in. Sneaking...");
+                Log.d(LOG_TAG, "Taking photo");
+                mPhotoTaker.takePhoto(this);
+            } else {
+                // Otherwise (user is not logged in), do nothing and stop service
+                Log.d(LOG_TAG, "User is NOT logged in. Stopping...");
+                stopSelf();
+            }
         } else {
-            // Otherwise (user is not logged in), do nothing and stop service
-            Log.d(LOG_TAG, "User is NOT logged in. Stopping...");
+            // Network not available
+            // Do nothing and stop service
+            Log.d(LOG_TAG, "Network not available. Stopping...");
             stopSelf();
         }
 
