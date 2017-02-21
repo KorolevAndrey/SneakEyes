@@ -6,6 +6,10 @@ import android.preference.PreferenceManager;
 import android.support.v7.preference.Preference;
 import android.support.v7.preference.PreferenceFragmentCompat;
 
+import com.gpetuhov.android.sneakeyes.utils.UtilsPrefs;
+
+import javax.inject.Inject;
+
 
 // Fragment for application settings.
 // Extends PreferenceFragmentCompat from the support library.
@@ -16,6 +20,23 @@ import android.support.v7.preference.PreferenceFragmentCompat;
 public class SettingsFragment extends PreferenceFragmentCompat
         implements Preference.OnPreferenceChangeListener,
         SharedPreferences.OnSharedPreferenceChangeListener {
+
+    // Keeps instance of UtilsPrefs. Injected by Dagger.
+    @Inject UtilsPrefs mUtilsPrefs;
+
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+
+        // Inject UtilsPrefs instance into this fragment field
+        SneakEyesApp.getAppComponent().inject(this);
+
+        // If this is the first run after install
+        if (mUtilsPrefs.isFirstRun()) {
+            // Initialize sneaking
+            SneakingService.setServiceAlarm(getActivity(), mUtilsPrefs);
+        }
+    }
 
     @Override
     public void onCreatePreferences(Bundle bundle, String s) {
@@ -52,6 +73,6 @@ public class SettingsFragment extends PreferenceFragmentCompat
     // Method is called when SharedPreferences are changed
     @Override
     public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
-        SneakingService.setServiceAlarm(getActivity());
+        SneakingService.setServiceAlarm(getActivity(), mUtilsPrefs);
     }
 }

@@ -58,9 +58,6 @@ public class SettingsActivity extends SingleFragmentActivity {
         // Save reference to running activity instance
         sSettingsActivity = SettingsActivity.this;
 
-        // Initialize sneaking
-        SneakingService.setServiceAlarm(SettingsActivity.this);
-
         // Create and return SettingsFragment instance
         return new SettingsFragment();
     }

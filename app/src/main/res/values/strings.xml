@@ -11,6 +11,9 @@
     <string name="pref_onoff_on_label">Enabled</string>
     <string name="pref_onoff_off_label">Disabled</string>
 
+    <!--First run key in SharedPreferences-->
+    <string name="pref_firstrun_key">pref_firstrun</string>
+
     <!--User logged out notification text-->
     <!--User logged out notification ticker-->
     <string name="logoff_notification_ticker">SneakEyesApp stopped sneaking</string>

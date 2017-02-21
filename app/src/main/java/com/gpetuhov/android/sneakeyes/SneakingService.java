@@ -6,16 +6,15 @@ import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.location.Location;
 import android.os.IBinder;
 import android.os.SystemClock;
-import android.preference.PreferenceManager;
 import android.support.annotation.Nullable;
 import android.util.Log;
 
 import com.gpetuhov.android.sneakeyes.utils.UtilsNet;
+import com.gpetuhov.android.sneakeyes.utils.UtilsPrefs;
 import com.vk.sdk.VKSdk;
 
 import java.util.Timer;
@@ -92,7 +91,9 @@ public class SneakingService extends Service implements
     }
 
     // Set AlarmManager to start or stop this service depending on settings in SharedPreferences
-    public static void setServiceAlarm(Context context) {
+    public static void setServiceAlarm(Context context, UtilsPrefs utilsPrefs) {
+
+        Log.d(LOG_TAG, "Setting AlarmManager");
 
         // Create new intent to start this service
         Intent i = SneakingService.newIntent(context);
@@ -106,19 +107,11 @@ public class SneakingService extends Service implements
         // Get reference to AlarmManager
         AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
 
-        // Get SharedPreferences
-        SharedPreferences sharedPreferences =
-                PreferenceManager.getDefaultSharedPreferences(context);
-
-        // Get Enabled/Disabled setting value from SharedPreferences
-        boolean sneakingEnabled =
-                sharedPreferences.getBoolean(context.getString(R.string.pref_onoff_key), true);
-
         // TODO: Get sneak interval from SharedPreferences
         int sneakInterval = SNEAK_INTERVAL;
 
         // If sneaking is enabled
-        if (sneakingEnabled) {
+        if (utilsPrefs.isSneakingEnabled()) {
 
             // Calculate sneak interval in milliseconds
             int sneakIntervalMillis = sneakInterval * SNEAK_INTERVAL_MINUTE;
