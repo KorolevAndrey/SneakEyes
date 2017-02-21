@@ -11,6 +11,8 @@ import android.support.v4.content.ContextCompat;
 import android.util.Log;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 // Takes photos from phone camera.
 // Implements Camera.PictureCallback to handle photos taken by the camera.
@@ -36,12 +38,20 @@ public class PhotoTaker implements Camera.PictureCallback, Camera.PreviewCallbac
     // Keeps camera instance
     private Camera mCamera;
 
+    // Number of cameras available
+    private int mNumberOfCameras;
+
+    // ID of the current camera in use
+    private int mCurrentCamera;
+
+    private List<Bitmap> mPhotos;
+
     // Keeps reference to the listener to PhotoTaker
     private PhotoResultListener mPhotoResultListener;
 
     // User of PhotoTaker must implement this interface to receive callbacks
     public interface PhotoResultListener {
-        void onPhotoTaken(Bitmap photo);
+        void onPhotoTaken(List<Bitmap> photos);
         void onPhotoError();
     }
 
@@ -66,39 +76,70 @@ public class PhotoTaker implements Camera.PictureCallback, Camera.PreviewCallbac
         if (checkCameraPermission(mContext)) {
             // We have permission to access camera
 
-            // CHeck if camera is available
+            // CHeck if any camera is available
             if (isCameraAvailable()) {
-                // Camera is available
+                // Cameras are available
 
-                // Release camera (because camera may be in use by previous operations)
-                releaseCamera();
+                // Get number of cameras available
+                int numberOfCameras = Camera.getNumberOfCameras();
 
-                // Try to get camera instance
-                if (getCameraInstance()) {
-                    // Camera instance acquired
+                if (numberOfCameras > 0) {
+                    // Device has one or more cameras
 
-                    // Try to initialize camera and start preview
-                    boolean success = initCameraAndStartPreview();
-
-                    // If not success, report error to the listener
-                    if (!success) {
-                        reportError();
+                    // If device has more than 1 camera, use only 2 of them
+                    if (numberOfCameras > 1) {
+                        numberOfCameras = 2;
                     }
 
-                    // Photo will be taken in callback method, when preview is ready.
+                    // Save number of cameras
+                    mNumberOfCameras = numberOfCameras;
+
+                    // Set current camera to 0 (back-facing)
+                    mCurrentCamera = 0;
+
+                    // Create new empty list of photos
+                    mPhotos = new ArrayList<>();
+
+                    takePhotoFromCamera(mCurrentCamera);
                 } else {
-                    // Camera instance not acquired
-                    Log.d(LOG_TAG, "Camera instance not acquired");
+                    // No cameras on device
+                    Log.d(LOG_TAG, "No cameras on device");
                     reportError();
                 }
             } else {
-                // Camera is not available
-                Log.d(LOG_TAG, "No camera on this device");
+                // No camera is available
+                Log.d(LOG_TAG, "No camera is available");
                 reportError();
             }
         } else {
             // No permission to access camera
             Log.d(LOG_TAG, "No permission to access camera");
+            reportError();
+        }
+    }
+
+    // Takes photo from the camera with provided ID
+    private void takePhotoFromCamera(int cameraId) {
+
+        // Release camera (because camera may be in use by previous operations)
+        releaseCamera();
+
+        // Try to get camera instance
+        if (getCameraInstance(cameraId)) {
+            // Camera instance acquired
+
+            // Try to initialize camera and start preview
+            boolean success = initCameraAndStartPreview();
+
+            // If not success, report error to the listener
+            if (!success) {
+                reportError();
+            }
+
+            // Photo will be taken in callback method, when preview is ready.
+        } else {
+            // Camera instance not acquired
+            Log.d(LOG_TAG, "Camera instance not acquired");
             reportError();
         }
     }
@@ -119,15 +160,13 @@ public class PhotoTaker implements Camera.PictureCallback, Camera.PreviewCallbac
     }
 
     // A safe way to get an instance of the Camera object
-    private boolean getCameraInstance() {
+    private boolean getCameraInstance(int cameraId) {
 
         Log.d(LOG_TAG, "Getting camera instance");
 
         try {
             // Attempt to get a Camera instance.
-            // Accesses the first, back-facing (main) camera.
-            // TODO: Change this to open front or back camera depending on the passed ID
-            mCamera = Camera.open(0);
+            mCamera = Camera.open(cameraId);
         }
         catch (Exception e){
             // Camera is not available (in use or does not exist)
@@ -200,7 +239,27 @@ public class PhotoTaker implements Camera.PictureCallback, Camera.PreviewCallbac
         // to Bitmap, scaled to output width and height.
         Bitmap photoBitmap = getScaledBitmap(data, OUTPUT_PHOTO_WIDTH, OUTPUT_PHOTO_HEIGHT);
 
-        reportSuccess(photoBitmap);
+        // Save taken photo
+        mPhotos.add(photoBitmap);
+
+        // Switch to next camera
+        mCurrentCamera++;
+
+        if (mCurrentCamera < mNumberOfCameras) {
+            // Didn't use all available cameras.
+            // Take photo from this camera.
+
+            Log.d(LOG_TAG, "Taking another photo");
+
+            takePhotoFromCamera(mCurrentCamera);
+        } else {
+            // Used all available cameras.
+            // Send taken photos to listener.
+
+            Log.d(LOG_TAG, "Used all available cameras. Sending result to listener");
+
+            reportSuccess();
+        }
     }
 
     // Get scaled Bitmap from byte array
@@ -228,10 +287,10 @@ public class PhotoTaker implements Camera.PictureCallback, Camera.PreviewCallbac
     }
 
     // Report success to the listener
-    private void reportSuccess(Bitmap photo) {
+    private void reportSuccess() {
         if (mPhotoResultListener != null) {
             // Pass photo Bitmap to the listener
-            mPhotoResultListener.onPhotoTaken(photo);
+            mPhotoResultListener.onPhotoTaken(mPhotos);
             unregisterListener();
         }
     }

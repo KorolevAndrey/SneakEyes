@@ -17,6 +17,7 @@ import com.gpetuhov.android.sneakeyes.utils.UtilsNet;
 import com.gpetuhov.android.sneakeyes.utils.UtilsPrefs;
 import com.vk.sdk.VKSdk;
 
+import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -62,8 +63,8 @@ public class SneakingService extends Service implements
     // Keeps instance of PhotoUploader. Injected by Dagger.
     @Inject PhotoUploader mPhotoUploader;
 
-    // Keeps taken photo
-    private Bitmap mPhoto;
+    // Keeps taken photos
+    private List<Bitmap> mPhotos;
 
     // Task will be run, if no location received during LOCATION_REQUEST_WAIT_INTERVAL
     private TimerTask mLocationRequestTimeoutTask = new TimerTask() {
@@ -78,7 +79,7 @@ public class SneakingService extends Service implements
             mLocationFetcher.stopFetchingLocation();
 
             // Start uploading photo to VK wall without location info.
-            mPhotoUploader.uploadPhoto(mPhoto, null, SneakingService.this);
+            mPhotoUploader.uploadPhoto(mPhotos, null, SneakingService.this);
         }
     };
 
@@ -159,17 +160,18 @@ public class SneakingService extends Service implements
                 // Take photo from the camera
                 Log.d(LOG_TAG, "User is logged in. Sneaking...");
                 Log.d(LOG_TAG, "Taking photo");
+
                 mPhotoTaker.takePhoto(this);
             } else {
                 // Otherwise (user is not logged in), do nothing and stop service
                 Log.d(LOG_TAG, "User is NOT logged in. Stopping...");
-                stopSelf();
+                stopSneakingService();
             }
         } else {
             // Network not available
             // Do nothing and stop service
             Log.d(LOG_TAG, "Network not available. Stopping...");
-            stopSelf();
+            stopSneakingService();
         }
 
         // Don't restart service if killed
@@ -192,13 +194,13 @@ public class SneakingService extends Service implements
 
     // --- PHOTOTAKER CALLBACKS ----------
 
-    // Method is called by PhotoTaker, when photo is taken.
+    // Method is called by PhotoTaker, when photos are taken.
     @Override
-    public void onPhotoTaken(Bitmap photo) {
-        Log.d(LOG_TAG, "Photo received");
+    public void onPhotoTaken(List<Bitmap> photos) {
+        Log.d(LOG_TAG, "Photos received");
 
-        // Save photo
-        mPhoto = photo;
+        // Save taken photo
+        mPhotos = photos;
 
         Log.d(LOG_TAG, "Fetching location");
 
@@ -217,7 +219,7 @@ public class SneakingService extends Service implements
     @Override
     public void onPhotoError() {
         Log.d(LOG_TAG, "Error taking photo. Stopping...");
-        stopSelf();
+        stopSneakingService();
     }
 
     // --- LOCATIONFETCHER CALLBACKS ----------
@@ -235,7 +237,7 @@ public class SneakingService extends Service implements
         mLocationFetcher.stopFetchingLocation();
 
         // Start uploading photo to VK wall with location info.
-        mPhotoUploader.uploadPhoto(mPhoto, location, this);
+        mPhotoUploader.uploadPhoto(mPhotos, location, this);
     }
 
     // Method is called when there is error in LocationFetcher fetching location
@@ -251,7 +253,7 @@ public class SneakingService extends Service implements
         mLocationFetcher.stopFetchingLocation();
 
         // Start uploading photo to VK wall without location info.
-        mPhotoUploader.uploadPhoto(mPhoto, null, this);
+        mPhotoUploader.uploadPhoto(mPhotos, null, this);
     }
 
     // --- PHOTOUPLOADER CALLBACKS ----------
@@ -274,8 +276,11 @@ public class SneakingService extends Service implements
         // Cancel timer (just in case it isn't cancelled yet)
         cancelTimer();
 
-        // Clear photo
-        mPhoto = null;
+        // Clear photos
+        if (mPhotos != null) {
+            mPhotos.clear();
+            mPhotos = null;
+        }
 
         // Stop service
         stopSelf();

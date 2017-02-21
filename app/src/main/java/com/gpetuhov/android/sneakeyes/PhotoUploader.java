@@ -18,6 +18,9 @@ import com.vk.sdk.api.model.VKWallPostResult;
 import com.vk.sdk.api.photo.VKImageParameters;
 import com.vk.sdk.api.photo.VKUploadImage;
 
+import java.util.ArrayList;
+import java.util.List;
+
 // Posts photos to user's VK wall.
 // User of PhotoUploader must implement PhotoUploadedListener to receive callbacks
 
@@ -31,14 +34,56 @@ public class PhotoUploader {
     // Hashtag for VK wall posts
     private static final String VK_HASHTAG = "#SneakEyesApp";
 
-    // Keeps photo to upload
-    private Bitmap mPhoto;
+    // Keeps photos to upload
+    private List<Bitmap> mPhotos;
 
     // Keeps location to attach to wall post
     private Location mLocation;
 
     // Keeps reference to the listener to PhotoUploader
-    PhotoUploadedListener mPhotoUploadedListener;
+    private PhotoUploadedListener mPhotoUploadedListener;
+
+    // Keeps list of uploaded photos IDs ready to be attached to the wall post
+    private List<VKApiPhoto> mVKApiPhotos;
+
+    // Receives results of photo upload to VK server
+    private VKRequest.VKRequestListener mVKUploadPhotoListener = new VKRequest.VKRequestListener() {
+        @Override
+        public void onComplete(VKResponse response) {
+            // Photo is uploaded to the server.
+            // Ready to make wall post with it.
+
+            Log.d(LOG_TAG, "Photo uploaded");
+
+            // Get uploaded photo ID from server response
+            VKApiPhoto photoModel = ((VKPhotoArray) response.parsedModel).get(0);
+
+            // Add uploaded photo ID to the list of attachments
+            mVKApiPhotos.add(photoModel);
+
+            // Remove uploaded photo from the list of photos
+            mPhotos.remove(0);
+
+            // Check if there are more photos to upload
+            if (!mPhotos.isEmpty()) {
+                // Still have photos to upload
+                Log.d(LOG_TAG, "Uploading another photo to VK server");
+
+                startUploadPhotoToServer();
+            } else {
+                // All photos uploaded
+                // Make wall post with attached photos
+                makePostToVKWall(new VKAttachments(mVKApiPhotos), createWallPostMessage(), getUserVKId());
+            }
+        }
+
+        @Override
+        public void onError(VKError error) {
+            // Error uploading photo to server.
+            Log.d(LOG_TAG, "Error uploading photo. Stopping...");
+            reportError();
+        }
+    };
 
     // User of PhotoUploader must implement this interface to receive callbacks
     public interface PhotoUploadedListener {
@@ -48,62 +93,53 @@ public class PhotoUploader {
 
     // Upload photo to VK wall.
     // Call this method to make VK wall post with photo attached.
-    public void uploadPhoto(Bitmap photo, Location location, PhotoUploadedListener listener) {
-        // Save photo, location and listener
-        mPhoto = photo;
-        mLocation = location;
-        mPhotoUploadedListener = listener;
+    public void uploadPhoto(List<Bitmap> photos, Location location, PhotoUploadedListener listener) {
+        if (photos != null) {
+            // Photos provided
 
-        // Start uploading
-        loadPhotoToVKWall();
+            // Save photos, location and listener
+            mPhotos = photos;
+            mLocation = location;
+            mPhotoUploadedListener = listener;
+
+            // Start uploading
+            loadPhotoToVKWall();
+        } else {
+            // Photos not provided
+            reportError();
+        }
     }
 
     // Loading photo to VK wall is done in 2 steps:
-    // 1. Upload photo to the server
+    // 1. Upload photos to the server
     // 2. Make wall post with this uploaded photo
     private void loadPhotoToVKWall() {
-        // Check if photo is available
-        if (mPhoto != null) {
-            // Photo is available. Start uploading to the server.
+        // Check if photos are available
+        if (!mPhotos.isEmpty()) {
+            // Photos are available. Start uploading to the server.
 
             Log.d(LOG_TAG, "Uploading photo to VK server");
 
-            // Create VK request
-            VKRequest request =
-                    VKApi.uploadWallPhotoRequest(
-                            new VKUploadImage(mPhoto, VKImageParameters.jpgImage(0.9f)),
-                            getUserVKId(), 0);
+            // Create new empty list of attachments
+            mVKApiPhotos = new ArrayList<>();
 
-            // Execute request and attach a listener for results
-            request.executeWithListener(new VKRequest.VKRequestListener() {
-                @Override
-                public void onComplete(VKResponse response) {
-                    // Photo is uploaded to the server.
-                    // Ready to make wall post with it.
-
-                    Log.d(LOG_TAG, "Photo uploaded");
-
-                    // Clear photo
-                    mPhoto = null;
-
-                    // Get uploaded photo ID from server response
-                    VKApiPhoto photoModel = ((VKPhotoArray) response.parsedModel).get(0);
-
-                    // Make wall post with attached photo
-                    makePostToVKWall(new VKAttachments(photoModel), createWallPostMessage(), getUserVKId());
-                }
-                @Override
-                public void onError(VKError error) {
-                    // Error uploading photo to server.
-                    Log.d(LOG_TAG, "Error uploading photo. Stopping...");
-                    reportError();
-                }
-            });
+            startUploadPhotoToServer();
         } else {
-            // Photo is not available.
+            // Photos are not available.
             Log.d(LOG_TAG, "No photo available. Stopping...");
             reportError();
         }
+    }
+
+    private void startUploadPhotoToServer() {
+        // Create VK request
+        VKRequest request =
+                VKApi.uploadWallPhotoRequest(
+                        new VKUploadImage(mPhotos.get(0), VKImageParameters.jpgImage(0.9f)),
+                        getUserVKId(), 0);
+
+        // Execute request and attach a listener for results
+        request.executeWithListener(mVKUploadPhotoListener);
     }
 
     // Return VK user ID

@@ -40,10 +40,10 @@ public class LocationFetcher implements
     private GoogleApiClient mGoogleApiClient;
 
     // Keeps location request
-    LocationRequest mLocationRequest;
+    private LocationRequest mLocationRequest;
 
     // Keeps reference to the listener to LocationFetcher
-    LocationFetchedListener mLocationFetchedListener;
+    private LocationFetchedListener mLocationFetchedListener;
 
     // User of LocationFetcher must implement this interface to receive callbacks
     public interface LocationFetchedListener {
