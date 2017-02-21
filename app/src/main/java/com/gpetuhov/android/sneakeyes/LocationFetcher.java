@@ -1,8 +1,11 @@
 package com.gpetuhov.android.sneakeyes;
 
+import android.Manifest;
 import android.content.Context;
+import android.content.pm.PackageManager;
 import android.location.Location;
 import android.os.Bundle;
+import android.support.v4.content.ContextCompat;
 import android.util.Log;
 
 import com.google.android.gms.common.ConnectionResult;
@@ -48,6 +51,23 @@ public class LocationFetcher implements
         void onLocationFetchError();
     }
 
+    // Return true if we have permission to access fine and coarse location
+    public static boolean checkLocationPermission(Context context) {
+
+        // Check permission to access fine location
+        boolean hasLocationFinePermission =
+                ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION)
+                        == PackageManager.PERMISSION_GRANTED;
+
+        // Check permission to access coarse location
+        boolean hasLocationCoarsePermission =
+                ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION)
+                        == PackageManager.PERMISSION_GRANTED;
+
+        // Return true if we have both permissions
+        return hasLocationFinePermission && hasLocationCoarsePermission;
+    }
+
     public LocationFetcher(Context context) {
         // Save context
         mContext = context;
@@ -66,15 +86,24 @@ public class LocationFetcher implements
         // Save reference to the listener
         mLocationFetchedListener = listener;
 
-        // If Google Play Services are available
-        if (isGooglePlayServicesAvailable()) {
-            Log.d(LOG_TAG, "Connecting to GoogleApiClient");
+        // Check permission to access location
+        if (checkLocationPermission(mContext)) {
+            // We have permission to access location
 
-            // Connect to GoogleApiClient to get location info
-            mGoogleApiClient.connect();
+            // If Google Play Services are available
+            if (isGooglePlayServicesAvailable()) {
+                Log.d(LOG_TAG, "Connecting to GoogleApiClient");
+
+                // Connect to GoogleApiClient to get location info
+                mGoogleApiClient.connect();
+            } else {
+                // Google Play Services not available
+                Log.d(LOG_TAG, "Google Play Services not available");
+                reportError();
+            }
         } else {
-            // Google Play Services not available
-            Log.d(LOG_TAG, "Google Play Services not available");
+            // No permission to access location
+            Log.d(LOG_TAG, "No permission to access location");
             reportError();
         }
     }

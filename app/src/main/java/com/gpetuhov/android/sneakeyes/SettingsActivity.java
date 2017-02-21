@@ -7,7 +7,6 @@ import android.content.pm.PackageManager;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.Fragment;
-import android.support.v4.content.ContextCompat;
 
 import com.vk.sdk.VKAccessToken;
 import com.vk.sdk.VKCallback;
@@ -73,24 +72,10 @@ public class SettingsActivity extends SingleFragmentActivity {
         // Activity goes into foreground
         sResumed = true;
 
-        // Check permission to access camera
-        boolean hasCameraPermission =
-                ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
-                == PackageManager.PERMISSION_GRANTED;
-
-        // Check permission to access fine location
-        boolean hasLocationFinePermission =
-                ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
-                        == PackageManager.PERMISSION_GRANTED;
-
-        // Check permission to access coarse location
-        boolean hasLocationCoarsePermission =
-                ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION)
-                        == PackageManager.PERMISSION_GRANTED;
-
-        // True if we have all permissions
+        // Check if we have permissions to access camera and location
         boolean hasAllPermissions =
-                hasCameraPermission && hasLocationFinePermission && hasLocationCoarsePermission;
+                PhotoTaker.checkCameraPermission(this)
+                        && LocationFetcher.checkLocationPermission(this);
 
         if (hasAllPermissions) {
             // We have all permissions, log in to VK

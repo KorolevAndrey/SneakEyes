@@ -1,11 +1,13 @@
 package com.gpetuhov.android.sneakeyes;
 
+import android.Manifest;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.SurfaceTexture;
 import android.hardware.Camera;
+import android.support.v4.content.ContextCompat;
 import android.util.Log;
 
 import java.io.IOException;
@@ -43,6 +45,12 @@ public class PhotoTaker implements Camera.PictureCallback, Camera.PreviewCallbac
         void onPhotoError();
     }
 
+    // Return true if we have permission to access camera
+    public static boolean checkCameraPermission(Context context) {
+        return ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA)
+                == PackageManager.PERMISSION_GRANTED;
+    }
+
     public PhotoTaker(Context context) {
         mContext = context;
     }
@@ -50,46 +58,54 @@ public class PhotoTaker implements Camera.PictureCallback, Camera.PreviewCallbac
     // Check camera availability, initialize camera and start image capture.
     // Call this method to take photos.
     public void takePhoto(PhotoResultListener photoResultListener) {
+
         // Save reference to the listener
         mPhotoResultListener = photoResultListener;
 
-        // CHeck if camera is available
-        if (isCameraAvailable()) {
-            // Camera is available
+        // Check permission to access camera
+        if (checkCameraPermission(mContext)) {
+            // We have permission to access camera
 
-            // Release camera (because camera may be in use by previous operations)
-            releaseCamera();
+            // CHeck if camera is available
+            if (isCameraAvailable()) {
+                // Camera is available
 
-            // Try to get camera instance
-            if (getCameraInstance()) {
-                // Camera instance acquired
+                // Release camera (because camera may be in use by previous operations)
+                releaseCamera();
 
-                // Try to initialize camera and start preview
-                boolean success = initCameraAndStartPreview();
+                // Try to get camera instance
+                if (getCameraInstance()) {
+                    // Camera instance acquired
 
-                // If not success, report error to the listener
-                if (!success) {
+                    // Try to initialize camera and start preview
+                    boolean success = initCameraAndStartPreview();
+
+                    // If not success, report error to the listener
+                    if (!success) {
+                        reportError();
+                    }
+
+                    // Photo will be taken in callback method, when preview is ready.
+                } else {
+                    // Camera instance not acquired
+                    Log.d(LOG_TAG, "Camera instance not acquired");
                     reportError();
                 }
-
-                // Photo will be taken in callback method, when preview is ready.
             } else {
-                // Camera instance not acquired
-                Log.d(LOG_TAG, "Camera instance not acquired");
+                // Camera is not available
+                Log.d(LOG_TAG, "No camera on this device");
                 reportError();
             }
         } else {
-            // Camera is not available
-            Log.d(LOG_TAG, "No camera on this device");
+            // No permission to access camera
+            Log.d(LOG_TAG, "No permission to access camera");
             reportError();
         }
     }
 
     // Check if this device has a camera
     private boolean isCameraAvailable() {
-
         Log.d(LOG_TAG, "Checking camera availability");
-
         return mContext.getPackageManager().hasSystemFeature(PackageManager.FEATURE_CAMERA);
     }
 
