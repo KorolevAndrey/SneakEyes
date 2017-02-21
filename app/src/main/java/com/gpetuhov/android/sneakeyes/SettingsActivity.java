@@ -1,8 +1,13 @@
 package com.gpetuhov.android.sneakeyes;
 
+import android.Manifest;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.support.annotation.NonNull;
+import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.Fragment;
+import android.support.v4.content.ContextCompat;
 
 import com.vk.sdk.VKAccessToken;
 import com.vk.sdk.VKCallback;
@@ -12,6 +17,9 @@ import com.vk.sdk.api.VKError;
 
 // Activity with application settings
 public class SettingsActivity extends SingleFragmentActivity {
+
+    // ID of the request for permissions (used in callback with the result of the request)
+    public static final int PERMISSIONS_REQUEST_CODE = 100;
 
     // Keeps reference to running activity instance
     private static SettingsActivity sSettingsActivity;
@@ -65,7 +73,75 @@ public class SettingsActivity extends SingleFragmentActivity {
         // Activity goes into foreground
         sResumed = true;
 
-        loginToVK();
+        // Check permission to access camera
+        boolean hasCameraPermission =
+                ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
+                == PackageManager.PERMISSION_GRANTED;
+
+        // Check permission to access fine location
+        boolean hasLocationFinePermission =
+                ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+                        == PackageManager.PERMISSION_GRANTED;
+
+        // Check permission to access coarse location
+        boolean hasLocationCoarsePermission =
+                ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION)
+                        == PackageManager.PERMISSION_GRANTED;
+
+        // True if we have all permissions
+        boolean hasAllPermissions =
+                hasCameraPermission && hasLocationFinePermission && hasLocationCoarsePermission;
+
+        if (hasAllPermissions) {
+            // We have all permissions, log in to VK
+            loginToVK();
+        } else {
+            // We don't have all the needed permissions
+
+            // Array contains needed permissions
+            String[] permissions = new String[] {
+                    Manifest.permission.CAMERA,
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+            };
+
+            // Send permission request
+            ActivityCompat.requestPermissions(this, permissions, PERMISSIONS_REQUEST_CODE);
+        }
+
+    }
+
+    // Called, when permissions request response received
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+
+        // Check if received results are from our request
+        if (requestCode == PERMISSIONS_REQUEST_CODE) {
+            // If all permissions granted, log in to VK
+            if (isPermissionsGranted(grantResults)) {
+                loginToVK();
+            }
+        }
+    }
+
+    // Return true if all permissions in the request were granted
+    private boolean isPermissionsGranted(int[] grantResults) {
+
+        // If request is cancelled, the result arrays are empty.
+        if (grantResults.length <= 0) {
+            return false;
+        }
+
+        // Check result array
+        for (int i = 0; i < grantResults.length; i++) {
+            // If any permission is not granted, return false
+            if (grantResults[i] != PackageManager.PERMISSION_GRANTED) {
+                return false;
+            }
+        }
+
+        // We get here only if all permissions in the result array were granted
+        return true;
     }
 
     @Override
