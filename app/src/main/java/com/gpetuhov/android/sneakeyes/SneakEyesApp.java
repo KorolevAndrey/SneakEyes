@@ -94,3 +94,5 @@ public class SneakEyesApp extends Application {
         VKSdk.initialize(this);
     }
 }
+
+// Application icon created with the Android Asset Studio: https://romannurik.github.io/AndroidAssetStudio/
