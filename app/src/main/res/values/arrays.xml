@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!--Arrays for time interval settings-->
+
+    <!--Time interval settings options-->
+    <string-array name="pref_interval_options">
+        <item>@string/pref_interval_label_1</item>
+        <item>@string/pref_interval_label_2</item>
+        <item>@string/pref_interval_label_3</item>
+    </string-array>
+
+    <!--Time interval settings values-->
+    <string-array name="pref_interval_values">
+        <item>@string/pref_interval_value_1</item>
+        <item>@string/pref_interval_value_2</item>
+        <item>@string/pref_interval_value_3</item>
+    </string-array>
+
+</resources>

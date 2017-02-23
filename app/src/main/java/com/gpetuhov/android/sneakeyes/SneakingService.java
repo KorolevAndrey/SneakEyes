@@ -45,9 +45,6 @@ public class SneakingService extends Service implements
     // Tag for logging
     private static final String LOG_TAG = SneakingService.class.getName();
 
-    // Sneak interval in minutes (for testing)
-    private static final int SNEAK_INTERVAL = 1;
-
     // One minute in milliseconds
     private static final int SNEAK_INTERVAL_MINUTE = 60 * 1000;
 
@@ -108,11 +105,11 @@ public class SneakingService extends Service implements
         // Get reference to AlarmManager
         AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
 
-        // TODO: Get sneak interval from SharedPreferences
-        int sneakInterval = SNEAK_INTERVAL;
-
         // If sneaking is enabled
         if (utilsPrefs.isSneakingEnabled()) {
+
+            // Get sneak interval (in minutes) from SharedPreferences
+            int sneakInterval = utilsPrefs.getSneakInterval();
 
             // Calculate sneak interval in milliseconds
             int sneakIntervalMillis = sneakInterval * SNEAK_INTERVAL_MINUTE;

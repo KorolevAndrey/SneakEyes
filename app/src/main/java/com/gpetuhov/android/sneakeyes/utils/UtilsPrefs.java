@@ -2,6 +2,7 @@ package com.gpetuhov.android.sneakeyes.utils;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.content.SharedPreferences.OnSharedPreferenceChangeListener;
 
 import com.gpetuhov.android.sneakeyes.R;
 
@@ -16,10 +17,29 @@ public class UtilsPrefs {
         mSharedPreferences = sharedPreferences;
     }
 
+    // Register listener to SharedPreferences changes
+    public void registerOnSharedPreferenceChangeListener(OnSharedPreferenceChangeListener listener) {
+        mSharedPreferences.registerOnSharedPreferenceChangeListener(listener);
+    }
+
+    // Unregister listener to SharedPreferences changes
+    public void unregisterOnSharedPreferenceChangeListener(OnSharedPreferenceChangeListener listener) {
+        mSharedPreferences.unregisterOnSharedPreferenceChangeListener(listener);
+    }
+
     // Return true if sneaking is enabled
     public boolean isSneakingEnabled() {
         // Get Enabled/Disabled setting value from SharedPreferences
         return mSharedPreferences.getBoolean(mContext.getString(R.string.pref_onoff_key), true);
+    }
+
+    // Get sneaking interval from SharedPreferences
+    public int getSneakInterval() {
+        String intervalString = mSharedPreferences.getString(
+                mContext.getString(R.string.pref_interval_key),
+                mContext.getString(R.string.pref_interval_value_2));
+
+        return Integer.parseInt(intervalString);
     }
 
     // Run true if this is the first run after install
@@ -35,10 +55,14 @@ public class UtilsPrefs {
         return firstRun;
     }
 
-    private void putBooleanToSharedPreferences(String key, boolean value) {
+    public void putBooleanToSharedPreferences(String key, boolean value) {
         mSharedPreferences
                 .edit()
                 .putBoolean(key, value)
                 .apply();
+    }
+
+    public String getStringFromSharedPreferences(String key, String defValue) {
+        return mSharedPreferences.getString(key, defValue);
     }
 }

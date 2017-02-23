@@ -15,4 +15,12 @@
         android:summaryOn="@string/pref_onoff_on_label"
         android:summaryOff="@string/pref_onoff_off_label"/>
 
+    <!--Time interval setting-->
+    <ListPreference
+        android:title="@string/pref_interval_label"
+        android:key="@string/pref_interval_key"
+        android:defaultValue="@string/pref_interval_value_2"
+        android:entries="@array/pref_interval_options"
+        android:entryValues="@array/pref_interval_values"/>
+
 </PreferenceScreen>

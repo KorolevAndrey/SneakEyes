@@ -11,6 +11,24 @@
     <string name="pref_onoff_on_label">Enabled</string>
     <string name="pref_onoff_off_label">Disabled</string>
 
+    <!--Time interval settings-->
+    <!--Title of time interval settings-->
+    <string name="pref_interval_label">Sneaking interval</string>
+    <!--Key for storing time interval settings in SharedPreferences-->
+    <string name="pref_interval_key">pref_interval</string>
+    <!--Text for time interval 1-->
+    <string name="pref_interval_label_1">15 minutes</string>
+    <!--Text for time interval 2-->
+    <string name="pref_interval_label_2">1 hour</string>
+    <!--Text for time interval 3-->
+    <string name="pref_interval_label_3">3 hours</string>
+    <!--Value for time interval 1 in SharedPreferences-->
+    <string name="pref_interval_value_1">15</string>
+    <!--Value for time interval 2 in SharedPreferences-->
+    <string name="pref_interval_value_2">60</string>
+    <!--Value for time interval 3 in SharedPreferences-->
+    <string name="pref_interval_value_3">180</string>
+
     <!--First run key in SharedPreferences-->
     <string name="pref_firstrun_key">pref_firstrun</string>
 
