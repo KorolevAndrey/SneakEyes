@@ -42,9 +42,6 @@ public class SneakingService extends Service implements
         LocationFetcher.LocationFetchedListener,
         PhotoUploader.PhotoUploadedListener {
 
-    // Tag for logging
-    private static final String LOG_TAG = SneakingService.class.getName();
-
     // One minute in milliseconds
     private static final int SNEAK_INTERVAL_MINUTE = 60 * 1000;
 
@@ -69,9 +66,6 @@ public class SneakingService extends Service implements
         public void run() {
             // Received no location info.
 
-            Log.d(LOG_TAG, "Location request timeout");
-            Log.d(LOG_TAG, "Start posting without location");
-
             // Stop LocationFetcher
             mLocationFetcher.stopFetchingLocation();
 
@@ -90,9 +84,6 @@ public class SneakingService extends Service implements
 
     // Set AlarmManager to start or stop this service depending on settings in SharedPreferences
     public static void setServiceAlarm(Context context, UtilsPrefs utilsPrefs) {
-
-        Log.d(LOG_TAG, "Setting AlarmManager");
-
         // Create new intent to start this service
         Intent i = SneakingService.newIntent(context);
 
@@ -155,19 +146,14 @@ public class SneakingService extends Service implements
             // If the user is logged in to VK
             if (VKSdk.isLoggedIn()) {
                 // Take photo from the camera
-                Log.d(LOG_TAG, "User is logged in. Sneaking...");
-                Log.d(LOG_TAG, "Taking photo");
-
                 mPhotoTaker.takePhoto(this);
             } else {
                 // Otherwise (user is not logged in), do nothing and stop service
-                Log.d(LOG_TAG, "User is NOT logged in. Stopping...");
                 stopSneakingService();
             }
         } else {
             // Network not available
             // Do nothing and stop service
-            Log.d(LOG_TAG, "Network not available. Stopping...");
             stopSneakingService();
         }
 
@@ -194,12 +180,8 @@ public class SneakingService extends Service implements
     // Method is called by PhotoTaker, when photos are taken.
     @Override
     public void onPhotoTaken(List<Bitmap> photos) {
-        Log.d(LOG_TAG, "Photos received");
-
         // Save taken photo
         mPhotos = photos;
-
-        Log.d(LOG_TAG, "Fetching location");
 
         // Fetch location
         mLocationFetcher.fetchLocation(this);
@@ -215,7 +197,6 @@ public class SneakingService extends Service implements
     // Method is called by PhotoTaker, when error while taking photo occurs
     @Override
     public void onPhotoError() {
-        Log.d(LOG_TAG, "Error taking photo. Stopping...");
         stopSneakingService();
     }
 
@@ -224,9 +205,6 @@ public class SneakingService extends Service implements
     // Method is called when LocationFetcher successfully fetches location
     @Override
     public void onLocationFetchSuccess(Location location) {
-        Log.d(LOG_TAG, "Location received");
-        Log.d(LOG_TAG, "Start posting with location");
-
         //  Location received, so cancel timer
         cancelTimer();
 
@@ -240,9 +218,6 @@ public class SneakingService extends Service implements
     // Method is called when there is error in LocationFetcher fetching location
     @Override
     public void onLocationFetchError() {
-        Log.d(LOG_TAG, "Error receiving location");
-        Log.d(LOG_TAG, "Start posting without location");
-
         // Error receiving location, nothing to wait for, so cancel timer
         cancelTimer();
 
@@ -258,14 +233,12 @@ public class SneakingService extends Service implements
     // Method is called, if PhotoUploader successfully posts photo to VK
     @Override
     public void onPhotoUploadSuccess() {
-        Log.d(LOG_TAG, "Posted successfully. Stopping...");
         stopSneakingService();
     }
 
     // Method is called, if there is error in PhotoUploader posting photo to VK
     @Override
     public void onPhotoUploadError() {
-        Log.d(LOG_TAG, "Error posting. Stopping...");
         stopSneakingService();
     }
 

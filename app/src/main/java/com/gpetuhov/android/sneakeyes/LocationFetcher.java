@@ -6,7 +6,6 @@ import android.content.pm.PackageManager;
 import android.location.Location;
 import android.os.Bundle;
 import android.support.v4.content.ContextCompat;
-import android.util.Log;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GooglePlayServicesUtil;
@@ -29,9 +28,6 @@ public class LocationFetcher implements
         GoogleApiClient.ConnectionCallbacks,
         GoogleApiClient.OnConnectionFailedListener,
         LocationListener {
-
-    // Tag for logging
-    private static final String LOG_TAG = LocationFetcher.class.getName();
 
     // Needed by Google Location Services
     private Context mContext;
@@ -92,18 +88,14 @@ public class LocationFetcher implements
 
             // If Google Play Services are available
             if (isGooglePlayServicesAvailable()) {
-                Log.d(LOG_TAG, "Connecting to GoogleApiClient");
-
                 // Connect to GoogleApiClient to get location info
                 mGoogleApiClient.connect();
             } else {
                 // Google Play Services not available
-                Log.d(LOG_TAG, "Google Play Services not available");
                 reportError();
             }
         } else {
             // No permission to access location
-            Log.d(LOG_TAG, "No permission to access location");
             reportError();
         }
     }
@@ -125,9 +117,6 @@ public class LocationFetcher implements
     // Method is called, when GoogleApiClient connection established
     @Override
     public void onConnected(Bundle bundle) {
-
-        Log.d(LOG_TAG, "Connected to GoogleApiClient");
-
         // Create request for current location
         mLocationRequest = LocationRequest.create();
         mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
@@ -136,8 +125,6 @@ public class LocationFetcher implements
         // The smallest displacement in meters the user must move between location updates
         // is by default set to 0, so we will receive onLocationChange() even if the user is not moving.
 
-        Log.d(LOG_TAG, "Sending location request");
-
         // Send request
         LocationServices.FusedLocationApi.requestLocationUpdates(mGoogleApiClient, mLocationRequest, this);
     }
@@ -145,8 +132,6 @@ public class LocationFetcher implements
     // Method is called, when GoogleApiClient connection suspended
     @Override
     public void onConnectionSuspended(int i) {
-        Log.d(LOG_TAG, "GoogleApiClient connection has been suspended");
-
         // GoogleApiClient connection has been suspended.
         // Report error to listener
         reportError();
@@ -155,8 +140,6 @@ public class LocationFetcher implements
     // Method is called, when GoogleApiClient connection failed
     @Override
     public void onConnectionFailed(ConnectionResult connectionResult) {
-        Log.i(LOG_TAG, "GoogleApiClient connection has failed");
-
         // GoogleApiClient connection has failed.
         // Report error to listener
         reportError();
@@ -165,8 +148,6 @@ public class LocationFetcher implements
     // Method is called, when location information received
     @Override
     public void onLocationChanged(Location location) {
-        Log.d(LOG_TAG, "Received location: " + location.toString());
-
         // Pass received location to the listener
         reportSuccess(location);
     }

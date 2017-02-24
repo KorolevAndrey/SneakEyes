@@ -24,9 +24,6 @@ import java.util.List;
 
 public class PhotoTaker implements Camera.PictureCallback, Camera.PreviewCallback {
 
-    // Tag for logging
-    private static final String LOG_TAG = PhotoTaker.class.getName();
-
     // Output photo dimensions
     // PhotoTaker will scale photo from the camera to fit these dimensions
     public static final int OUTPUT_PHOTO_WIDTH = 800;
@@ -103,17 +100,14 @@ public class PhotoTaker implements Camera.PictureCallback, Camera.PreviewCallbac
                     takePhotoFromCamera(mCurrentCamera);
                 } else {
                     // No cameras on device
-                    Log.d(LOG_TAG, "No cameras on device");
                     reportError();
                 }
             } else {
                 // No camera is available
-                Log.d(LOG_TAG, "No camera is available");
                 reportError();
             }
         } else {
             // No permission to access camera
-            Log.d(LOG_TAG, "No permission to access camera");
             reportError();
         }
     }
@@ -139,21 +133,18 @@ public class PhotoTaker implements Camera.PictureCallback, Camera.PreviewCallbac
             // Photo will be taken in callback method, when preview is ready.
         } else {
             // Camera instance not acquired
-            Log.d(LOG_TAG, "Camera instance not acquired");
             reportError();
         }
     }
 
     // Check if this device has a camera
     private boolean isCameraAvailable() {
-        Log.d(LOG_TAG, "Checking camera availability");
         return mContext.getPackageManager().hasSystemFeature(PackageManager.FEATURE_CAMERA);
     }
 
     // Camera must be released to be used later by this or other apps
     private void releaseCamera() {
         if (mCamera != null) {
-            Log.d(LOG_TAG, "Releasing camera");
             mCamera.release();
             mCamera = null;
         }
@@ -161,9 +152,6 @@ public class PhotoTaker implements Camera.PictureCallback, Camera.PreviewCallbac
 
     // A safe way to get an instance of the Camera object
     private boolean getCameraInstance(int cameraId) {
-
-        Log.d(LOG_TAG, "Getting camera instance");
-
         try {
             // Attempt to get a Camera instance.
             mCamera = Camera.open(cameraId);
@@ -171,7 +159,6 @@ public class PhotoTaker implements Camera.PictureCallback, Camera.PreviewCallbac
         catch (Exception e){
             // Camera is not available (in use or does not exist)
             // Do nothing, because we will return false in this case
-            Log.e(LOG_TAG, "Getting camera instance failed");
         }
 
         // Return true, if camera opened successfully
@@ -180,9 +167,6 @@ public class PhotoTaker implements Camera.PictureCallback, Camera.PreviewCallbac
 
     // Initialize camera and start preview
     private boolean initCameraAndStartPreview() {
-
-        Log.d(LOG_TAG, "Initializing camera");
-
         // True if operation completed successfully
         boolean successFlag = true;
 
@@ -201,7 +185,6 @@ public class PhotoTaker implements Camera.PictureCallback, Camera.PreviewCallbac
                 mCamera.startPreview();
             } catch (IOException e) {
                 // Error while initializing camera
-                Log.e(LOG_TAG, "Error while initializing camera");
                 successFlag = false;
             }
         } else {
@@ -217,9 +200,6 @@ public class PhotoTaker implements Camera.PictureCallback, Camera.PreviewCallbac
     // because we set PhotoTaker as listener by setOneShotPreviewCallback().
     @Override
     public void onPreviewFrame(byte[] data, Camera camera) {
-
-        Log.d(LOG_TAG, "Taking photo");
-
         // Start asynchronous image capture.
         // When image is taken, onPictureTaken() will be called.
         mCamera.takePicture(null, null, this);
@@ -232,8 +212,6 @@ public class PhotoTaker implements Camera.PictureCallback, Camera.PreviewCallbac
 
         // Photo is taken, we should release the camera.
         releaseCamera();
-
-        Log.d(LOG_TAG, "Processing photo");
 
         // Convert byte array, received from the camera,
         // to Bitmap, scaled to output width and height.
@@ -248,16 +226,10 @@ public class PhotoTaker implements Camera.PictureCallback, Camera.PreviewCallbac
         if (mCurrentCamera < mNumberOfCameras) {
             // Didn't use all available cameras.
             // Take photo from this camera.
-
-            Log.d(LOG_TAG, "Taking another photo");
-
             takePhotoFromCamera(mCurrentCamera);
         } else {
             // Used all available cameras.
             // Send taken photos to listener.
-
-            Log.d(LOG_TAG, "Used all available cameras. Sending result to listener");
-
             reportSuccess();
         }
     }

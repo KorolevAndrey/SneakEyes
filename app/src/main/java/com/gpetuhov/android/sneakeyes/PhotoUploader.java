@@ -28,9 +28,6 @@ import java.util.List;
 
 public class PhotoUploader {
 
-    // Tag for logging
-    private static final String LOG_TAG = PhotoUploader.class.getName();
-
     // Hashtag for VK wall posts
     private static final String VK_HASHTAG = "#SneakEyesApp";
 
@@ -53,8 +50,6 @@ public class PhotoUploader {
             // Photo is uploaded to the server.
             // Ready to make wall post with it.
 
-            Log.d(LOG_TAG, "Photo uploaded");
-
             // Get uploaded photo ID from server response
             VKApiPhoto photoModel = ((VKPhotoArray) response.parsedModel).get(0);
 
@@ -67,8 +62,6 @@ public class PhotoUploader {
             // Check if there are more photos to upload
             if (!mPhotos.isEmpty()) {
                 // Still have photos to upload
-                Log.d(LOG_TAG, "Uploading another photo to VK server");
-
                 startUploadPhotoToServer();
             } else {
                 // All photos uploaded
@@ -80,7 +73,6 @@ public class PhotoUploader {
         @Override
         public void onError(VKError error) {
             // Error uploading photo to server.
-            Log.d(LOG_TAG, "Error uploading photo. Stopping...");
             reportError();
         }
     };
@@ -118,15 +110,12 @@ public class PhotoUploader {
         if (!mPhotos.isEmpty()) {
             // Photos are available. Start uploading to the server.
 
-            Log.d(LOG_TAG, "Uploading photo to VK server");
-
             // Create new empty list of attachments
             mVKApiPhotos = new ArrayList<>();
 
             startUploadPhotoToServer();
         } else {
             // Photos are not available.
-            Log.d(LOG_TAG, "No photo available. Stopping...");
             reportError();
         }
     }
@@ -153,9 +142,6 @@ public class PhotoUploader {
 
     // Make post to the user's VK wall with provided attachments and message
     private void makePostToVKWall(VKAttachments att, String msg, final int ownerId) {
-
-        Log.d(LOG_TAG, "Making VK wall post");
-
         // Create parameters for the wall post request
         VKParameters parameters = new VKParameters();
         parameters.put(VKApiConst.OWNER_ID, String.valueOf(ownerId));
@@ -171,13 +157,11 @@ public class PhotoUploader {
             @Override
             public void onComplete(VKResponse response) {
                 // Post was added
-                Log.d(LOG_TAG, "Successfully posted. Stopping...");
                 reportSuccess();
             }
             @Override
             public void onError(VKError error) {
                 // Error
-                Log.d(LOG_TAG, "Error making post. Stopping...");
                 reportError();
             }
         });
